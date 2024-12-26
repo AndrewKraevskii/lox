@@ -1,0 +1,4 @@
+// Your first Lox program!
+print 1 == 0;
+print "Hello, world!";
+print "Hello, world!\"" ;
