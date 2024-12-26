@@ -39,27 +39,18 @@ pub fn run(arena: std.mem.Allocator, source: []const u8) void {
 
     const expr = parser.parseExpression() catch return;
     parser.print(expr);
+    const result = @import("Interpreter.zig").interpret(
+        arena,
+        source,
+        parser.nodes.items,
+        expr,
+    ) catch |e| {
+        log.err("{s}", .{@errorName(e)});
+        return;
+    };
+    std.debug.print("\n", .{});
+    result.print();
 
-    // while (tokenizer.next()) |token| {
-    //     switch (token.type) {
-    //         .string, .identifier => |s| {
-    //             std.debug.print("`{s}`", .{s});
-    //         },
-    //         .number => |n| {
-    //             std.debug.print("`{}`", .{n});
-    //         },
-    //         .invalid => {
-    //             number_of_errors += 1;
-    //             if (number_of_errors > 2) {
-    //                 std.debug.print("To many errors stoping\n", .{});
-    //                 return;
-    //             }
-    //         },
-    //         else => {
-    //             std.debug.print("`{?s}`", .{token.type.asString()});
-    //         },
-    //     }
-    // }
     std.debug.print("\n", .{});
 }
 

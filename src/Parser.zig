@@ -8,9 +8,9 @@ const report = @import("lox.zig").report;
 const Parser = @This();
 const log = std.log.scoped(.parser);
 
-const Error = error{ParseError} || std.mem.Allocator.Error;
+pub const Error = error{ParseError} || std.mem.Allocator.Error;
 
-const ExpressionType = enum {
+pub const ExpressionType = enum {
     string,
     number,
     true,
@@ -28,7 +28,6 @@ const ExpressionType = enum {
     div,
     negation,
     binary_sub,
-    unary_add,
     binary_add,
     @"and",
     @"or",
@@ -80,14 +79,14 @@ const ExpressionType = enum {
             => .binary,
             .not,
             .negation,
-            .unary_add,
             => .unary,
         };
     }
 };
 
-const Expression = struct {
+pub const Expression = struct {
     type: ExpressionType,
+    source_loc: u32,
     value: union {
         string: []const u8,
         number: f64,
@@ -110,7 +109,9 @@ pub fn init(arena: std.mem.Allocator, tokenizer: *Tokenizer) error{OutOfMemory}!
     return parser;
 }
 
-fn addNode(parser: *Parser, expr: Expression) error{OutOfMemory}!u32 {
+fn addNode(parser: *Parser, expression: Expression) error{OutOfMemory}!u32 {
+    const expr = expression;
+
     try parser.nodes.append(parser.arena, expr);
     return @intCast(parser.nodes.items.len - 1);
 }
@@ -146,13 +147,14 @@ pub fn print(parser: *Parser, expression_index: u32) void {
 fn parsePrefix(p: *Parser) Error!u32 {
     const token = p.tokenizer.peek().?;
     const expr_type: ExpressionType = switch (token.type) {
-        .plus => .unary_add,
         .minus => .negation,
+        .bang => .not,
         else => return p.parsePrimaryExpression(),
     };
     _ = p.tokenizer.next();
     return p.addNode(.{
         .type = expr_type,
+        .source_loc = token.position,
         .value = .{
             .children = .{
                 try p.parsePrefix(),
@@ -220,22 +222,27 @@ fn parsePrimaryExpression(p: *Parser) Error!u32 {
     return p.addNode(switch (expr.type) {
         .number => |n| .{
             .type = .number,
+            .source_loc = expr.position,
             .value = .{ .number = n },
         },
         .string => |s| .{
             .type = .string,
+            .source_loc = expr.position,
             .value = .{ .string = s },
         },
         .true => .{
             .type = .true,
+            .source_loc = expr.position,
             .value = undefined,
         },
         .false => .{
             .type = .false,
+            .source_loc = expr.position,
             .value = undefined,
         },
         .nil => .{
             .type = .nil,
+            .source_loc = expr.position,
             .value = undefined,
         },
         .left_paren => {
@@ -265,6 +272,7 @@ fn parseExpressionPresedence(p: *Parser, min_prec: i8) Error!u32 {
 
         node = try p.addNode(.{
             .type = info.tag,
+            .source_loc = token.position,
             .value = .{ .children = .{ node, rhs } },
         });
     }

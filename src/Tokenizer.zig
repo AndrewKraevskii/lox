@@ -1,4 +1,4 @@
-const lox = @import("lox.zig");
+const report = @import("lox.zig").report;
 const std = @import("std");
 const log = std.log.scoped(.tokenizer);
 
@@ -96,7 +96,7 @@ pub fn next(self: *@This()) ?Token {
 
         break;
     }
-    lox.report(self.source, self.position, "unexpected token");
+    report(self.source, self.position, "unexpected token");
     defer self.position += 1;
 
     return .{ .type = .invalid, .position = self.position };
@@ -222,51 +222,6 @@ pub const TokenType = union(enum) {
     invalid,
 
     pub fn asString(token: TokenType) ?[]const u8 {
-        return switch (token) {
-            .left_paren => "(",
-            .right_paren => ")",
-            .left_brace => "{",
-            .right_brace => "}",
-            .comma => ",",
-            .dot => ".",
-            .minus => "-",
-            .plus => "+",
-            .semicolon => ";",
-            .slash => "/",
-            .star => "*",
-            .bang => "!",
-            .bang_equal => "!=",
-            .equal => "=",
-            .equal_equal => "==",
-            .greater => ">",
-            .greater_equal => ">=",
-            .less => "<",
-            .less_equal => "<=",
-            .identifier => null,
-            .string => null,
-            .number => null,
-            .@"and" => "and",
-            .class => "class",
-            .@"else" => "else",
-            .false => "false",
-            .fun => "fun",
-            .@"for" => "for",
-            .@"if" => "if",
-            .nil => "nil",
-            .@"or" => "or",
-            .print => "print",
-            .@"return" => "return",
-            .super => "super",
-            .this => "this",
-            .true => "true",
-            .@"var" => "var",
-            .@"while" => "while",
-            .invalid => null,
-        };
-    }
-
-    /// Higher number means it should evaluate sooner.
-    pub fn priority(token: TokenType) u8 {
         return switch (token) {
             .left_paren => "(",
             .right_paren => ")",
