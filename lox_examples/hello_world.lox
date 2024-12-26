@@ -1,4 +1,17 @@
 // Your first Lox program!
-print 1 == 0;
-print "Hello, world!";
-print "Hello, world!\"" ;
+print "Hello, world!
+
+";
+
+print -10.35;
+print -10.0;
+print -10;
+print -10.abs();
+print 0.5;
+print 4.;
+print .2;
+ 
+foo = 10;
+bar10 = foo;
+print bar10;
+orchid

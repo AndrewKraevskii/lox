@@ -14,12 +14,13 @@ pub fn init(source: []const u8) @This() {
     };
 }
 
-pub fn next(self: *@This()) ?TokenType {
+pub fn next(self: *@This()) ?Token {
     outer: while (true) {
         if (self.finished()) return null;
         self.skipWhitespaces();
         if (self.finished()) return null;
 
+        const start = self.position;
         if (std.mem.startsWith(u8, self.source[self.position..], "//")) {
             self.position = @intCast(std.mem.indexOfScalarPos(
                 u8,
@@ -33,14 +34,18 @@ pub fn next(self: *@This()) ?TokenType {
         for (map) |token| {
             const string = token[0];
             if (std.mem.startsWith(u8, self.source[self.position..], string)) {
+                if (token[1].isKeyword() and
+                    std.ascii.isAlphanumeric(self.source[self.position + string.len]))
+                {
+                    // Keyword is prefix for identifier.
+                    break;
+                }
                 self.position += @intCast(string.len);
-                return token[1];
+                return .{ .type = token[1], .position = start };
             }
         }
 
         if (std.mem.startsWith(u8, self.source[self.position..], "\"")) {
-            const start = self.position;
-
             const end = end: while (true) {
                 const end = std.mem.indexOfScalarPos(u8, self.source, self.position + 1, '\"') orelse break :outer;
                 if (self.source[end - 1] == '\\') {
@@ -50,29 +55,63 @@ pub fn next(self: *@This()) ?TokenType {
                 break :end end;
             };
             self.position = @intCast(end + 1);
-            return .{ .string = self.source[start + 1 .. end] };
+            return .{
+                .type = .{ .string = self.source[start + 1 .. end] },
+                .position = start,
+            };
         }
 
         if (std.ascii.isDigit(self.source[self.position])) {
-            const start = self.position;
-
-            const end = std.mem.indexOfNonePos(
+            var end = std.mem.indexOfNonePos(
                 u8,
                 self.source,
                 self.position,
                 digits,
             ) orelse self.source.len;
+            if (self.source.len - end >= 2 and self.source[end] == '.' and std.ascii.isDigit(self.source[end + 1])) {
+                end = std.mem.indexOfNonePos(
+                    u8,
+                    self.source,
+                    end + 1,
+                    digits,
+                ) orelse self.source.len;
+            }
+
+            self.position = @intCast(end);
+            const num = std.fmt.parseFloat(f64, self.source[start..end]) catch break :outer;
+            return .{ .type = .{ .number = num }, .position = start };
+        }
+
+        if (std.ascii.isAlphabetic(self.source[self.position])) {
+            const end = for (self.source[self.position..], self.position..) |char, index| {
+                if (!std.ascii.isAlphanumeric(char)) {
+                    break index;
+                }
+            } else self.source.len;
             self.position = @intCast(end);
 
-            return .{ .number = self.source[start..end] };
+            return .{ .type = .{ .identifier = self.source[start..end] }, .position = start };
         }
 
         break;
     }
     lox.report(self.source, self.position, "unexpected token");
-    self.position += 1;
+    defer self.position += 1;
 
-    return .invalid;
+    return .{ .type = .invalid, .position = self.position };
+}
+
+pub fn peek(self: *@This()) ?TokenType {
+    const position = self.position;
+    defer self.position = position;
+    return self.next();
+}
+
+pub fn peekNext(self: *@This()) ?TokenType {
+    const position = self.position;
+    defer self.position = position;
+    self.next();
+    return self.next();
 }
 
 fn finished(self: *const @This()) bool {
@@ -127,6 +166,11 @@ const map = [_]struct { []const u8, TokenType }{
     .{ "while", .@"while" },
 };
 
+pub const Token = struct {
+    position: u32,
+    type: TokenType,
+};
+
 pub const TokenType = union(enum) {
     // Single-character tokens.
     left_paren,
@@ -154,7 +198,7 @@ pub const TokenType = union(enum) {
     // Literals.
     identifier: []const u8,
     string: []const u8,
-    number: []const u8,
+    number: f64,
 
     // Keywords.
     @"and",
@@ -217,6 +261,29 @@ pub const TokenType = union(enum) {
             .@"var" => "var",
             .@"while" => "while",
             .invalid => null,
+        };
+    }
+
+    pub fn isKeyword(token: TokenType) bool {
+        return switch (token) {
+            .@"and",
+            .class,
+            .@"else",
+            .false,
+            .fun,
+            .@"for",
+            .@"if",
+            .nil,
+            .@"or",
+            .print,
+            .@"return",
+            .super,
+            .this,
+            .true,
+            .@"var",
+            .@"while",
+            => true,
+            else => false,
         };
     }
 };

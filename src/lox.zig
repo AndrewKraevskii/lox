@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const log = std.log.scoped(.lox);
-
 const max_file_size = 1024 * 1024 * 1024; // 1 GB
 
 pub fn runFile(arena: std.mem.Allocator, path: []const u8) !void {
@@ -28,13 +27,15 @@ pub fn runPrompt(arena: std.mem.Allocator) !void {
 pub fn run(source: []const u8) void {
     log.info("running code:\n{s}", .{source});
     var tokenizer = @import("Tokenizer.zig").init(source);
-    // var tokenizer = std.mem.tokenizeAny(u8, source, &std.ascii.whitespace);
 
     var number_of_errors: usize = 0;
     while (tokenizer.next()) |token| {
-        switch (token) {
-            .string => |_| {
-                // std.debug.print("`{s}`", .{s});
+        switch (token.type) {
+            .string, .identifier => |s| {
+                std.debug.print("`{s}`", .{s});
+            },
+            .number => |n| {
+                std.debug.print("`{}`", .{n});
             },
             .invalid => {
                 number_of_errors += 1;
@@ -44,10 +45,11 @@ pub fn run(source: []const u8) void {
                 }
             },
             else => {
-                // std.debug.print("`{?s}`", .{token.asString()});
+                std.debug.print("`{?s}`", .{token.type.asString()});
             },
         }
     }
+    std.debug.print("`\n", .{});
 }
 
 pub fn report(source_code: []const u8, byte: u32, message: []const u8) void {
