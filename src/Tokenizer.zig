@@ -35,6 +35,7 @@ pub fn next(self: *@This()) ?Token {
             const string = token[0];
             if (std.mem.startsWith(u8, self.source[self.position..], string)) {
                 if (token[1].isKeyword() and
+                    self.position + string.len < self.source.len and
                     std.ascii.isAlphanumeric(self.source[self.position + string.len]))
                 {
                     // Keyword is prefix for identifier.
@@ -101,13 +102,13 @@ pub fn next(self: *@This()) ?Token {
     return .{ .type = .invalid, .position = self.position };
 }
 
-pub fn peek(self: *@This()) ?TokenType {
+pub fn peek(self: *@This()) ?Token {
     const position = self.position;
     defer self.position = position;
     return self.next();
 }
 
-pub fn peekNext(self: *@This()) ?TokenType {
+pub fn peekNext(self: *@This()) ?Token {
     const position = self.position;
     defer self.position = position;
     self.next();
@@ -221,6 +222,51 @@ pub const TokenType = union(enum) {
     invalid,
 
     pub fn asString(token: TokenType) ?[]const u8 {
+        return switch (token) {
+            .left_paren => "(",
+            .right_paren => ")",
+            .left_brace => "{",
+            .right_brace => "}",
+            .comma => ",",
+            .dot => ".",
+            .minus => "-",
+            .plus => "+",
+            .semicolon => ";",
+            .slash => "/",
+            .star => "*",
+            .bang => "!",
+            .bang_equal => "!=",
+            .equal => "=",
+            .equal_equal => "==",
+            .greater => ">",
+            .greater_equal => ">=",
+            .less => "<",
+            .less_equal => "<=",
+            .identifier => null,
+            .string => null,
+            .number => null,
+            .@"and" => "and",
+            .class => "class",
+            .@"else" => "else",
+            .false => "false",
+            .fun => "fun",
+            .@"for" => "for",
+            .@"if" => "if",
+            .nil => "nil",
+            .@"or" => "or",
+            .print => "print",
+            .@"return" => "return",
+            .super => "super",
+            .this => "this",
+            .true => "true",
+            .@"var" => "var",
+            .@"while" => "while",
+            .invalid => null,
+        };
+    }
+
+    /// Higher number means it should evaluate sooner.
+    pub fn priority(token: TokenType) u8 {
         return switch (token) {
             .left_paren => "(",
             .right_paren => ")",

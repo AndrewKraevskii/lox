@@ -1,12 +1,15 @@
 const std = @import("std");
 
+const Tokenizer = @import("Tokenizer.zig");
+const Parser = @import("Parser.zig");
+
 const log = std.log.scoped(.lox);
 const max_file_size = 1024 * 1024 * 1024; // 1 GB
 
 pub fn runFile(arena: std.mem.Allocator, path: []const u8) !void {
     const source = try std.fs.cwd().readFileAlloc(arena, path, max_file_size);
 
-    run(source);
+    run(arena, source);
 }
 
 pub fn runPrompt(arena: std.mem.Allocator) !void {
@@ -20,36 +23,44 @@ pub fn runPrompt(arena: std.mem.Allocator) !void {
             error.EndOfStream => return,
             else => |other_errors| return other_errors,
         };
-        run(line.items);
+        var run_arena = std.heap.ArenaAllocator.init(arena);
+        defer run_arena.deinit();
+        run(run_arena.allocator(), line.items);
     }
 }
 
-pub fn run(source: []const u8) void {
-    log.info("running code:\n{s}", .{source});
-    var tokenizer = @import("Tokenizer.zig").init(source);
+pub fn run(arena: std.mem.Allocator, source: []const u8) void {
+    // _ = arena; // autofix
+    // log.info("running code:\n{s}", .{source});
 
-    var number_of_errors: usize = 0;
-    while (tokenizer.next()) |token| {
-        switch (token.type) {
-            .string, .identifier => |s| {
-                std.debug.print("`{s}`", .{s});
-            },
-            .number => |n| {
-                std.debug.print("`{}`", .{n});
-            },
-            .invalid => {
-                number_of_errors += 1;
-                if (number_of_errors > 2) {
-                    std.debug.print("To many errors stoping\n", .{});
-                    return;
-                }
-            },
-            else => {
-                std.debug.print("`{?s}`", .{token.type.asString()});
-            },
-        }
-    }
-    std.debug.print("`\n", .{});
+    var tokenizer: Tokenizer = .init(source);
+    // var number_of_errors: usize = 0;
+    var parser = Parser.init(arena, &tokenizer) catch return;
+
+    const expr = parser.parseExpression() catch return;
+    parser.print(expr);
+
+    // while (tokenizer.next()) |token| {
+    //     switch (token.type) {
+    //         .string, .identifier => |s| {
+    //             std.debug.print("`{s}`", .{s});
+    //         },
+    //         .number => |n| {
+    //             std.debug.print("`{}`", .{n});
+    //         },
+    //         .invalid => {
+    //             number_of_errors += 1;
+    //             if (number_of_errors > 2) {
+    //                 std.debug.print("To many errors stoping\n", .{});
+    //                 return;
+    //             }
+    //         },
+    //         else => {
+    //             std.debug.print("`{?s}`", .{token.type.asString()});
+    //         },
+    //     }
+    // }
+    std.debug.print("\n", .{});
 }
 
 pub fn report(source_code: []const u8, byte: u32, message: []const u8) void {
