@@ -30,20 +30,35 @@ const Value = union(enum) {
         };
     }
 
-    pub fn print(v: Value) void {
-        return switch (v) {
-            .nil => std.debug.print("nil", .{}),
-            .number => |n| std.debug.print("{d}", .{n}),
-            .string => |s| std.debug.print("{s}", .{s}),
-            .bool => |b| std.debug.print("{}", .{b}),
-        };
+    pub fn format(
+        value: Value,
+        comptime _: []const u8,
+        _: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        switch (value) {
+            .nil => try writer.writeAll("nil"),
+            .number => |n| try writer.print("{d}", .{n}),
+            .string => |s| try writer.writeAll(s),
+            .bool => |b| try writer.writeAll(if (b) "true" else "false"),
+        }
     }
+
+    // pub fn format(v: Value, writer: anytype) !void {
+    //     return switch (v) {
+    //         .nil => writer.writeAll("nil"),
+    //         .number => |n| writer.print("{d}", .{n}),
+    //         .string => |s| writer.writeAll(s),
+    //         .bool => |b| writer.writeAll(if (b) "true" else "false"),
+    //     };
+    // }
 };
 
 pub fn interpret(
     arena: std.mem.Allocator,
     source: []const u8,
     nodes: []const Expression,
+    extra: []u32,
     expr_id: u32,
 ) error{ RuntimeError, OutOfMemory }!Value {
     const expression = nodes[expr_id];
@@ -63,6 +78,7 @@ pub fn interpret(
                 arena,
                 source,
                 nodes,
+                extra,
                 expression.value.children[0],
             );
             return switch (expression.type) {
@@ -90,12 +106,14 @@ pub fn interpret(
                 arena,
                 source,
                 nodes,
+                extra,
                 expression.value.children[0],
             );
             const rhs = try interpret(
                 arena,
                 source,
                 nodes,
+                extra,
                 expression.value.children[1],
             );
 
@@ -162,6 +180,39 @@ pub fn interpret(
                 .@"and" => return .{ .bool = lhs.isTruthy() and rhs.isTruthy() },
                 .equal => return .{ .bool = lhs.eql(rhs) },
                 .not_equal => return .{ .bool = !lhs.eql(rhs) },
+                else => unreachable,
+            }
+        },
+        .statment => {
+            switch (expression.type) {
+                .print_statement => {
+                    const value = try interpret(
+                        arena,
+                        source,
+                        nodes,
+                        extra,
+                        expression.value.children[0],
+                    );
+                    std.debug.print("{s}", .{value});
+                    return .nil;
+                },
+                .expr_statement => {
+                    _ = try interpret(
+                        arena,
+                        source,
+                        nodes,
+                        extra,
+                        expression.value.children[0],
+                    );
+                    return .nil;
+                },
+                .program => {
+                    const start, const end = expression.value.children;
+                    for (extra[start..end]) |node| {
+                        _ = try interpret(arena, source, nodes, extra, node);
+                    }
+                    return .nil;
+                },
                 else => unreachable,
             }
         },

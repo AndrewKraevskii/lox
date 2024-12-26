@@ -38,7 +38,9 @@ pub const ExpressionType = enum {
     // "}", // .right_brace,
     // ",", // .comma,
     // ".", // .dot,
-    // ";", // .semicolon,
+    print_statement,
+    expr_statement,
+    program,
     // "=", // .equal,
     // "class", // .class,
     // "else", // .@"else",
@@ -56,6 +58,7 @@ pub const ExpressionType = enum {
         literal,
         unary,
         binary,
+        statment,
     } {
         return switch (self) {
             .string,
@@ -80,6 +83,10 @@ pub const ExpressionType = enum {
             .not,
             .negation,
             => .unary,
+            .print_statement,
+            .expr_statement,
+            .program,
+            => .statment,
         };
     }
 };
@@ -96,10 +103,12 @@ pub const Expression = struct {
 
 arena: std.mem.Allocator,
 nodes: std.ArrayListUnmanaged(Expression),
+extra_data: std.ArrayListUnmanaged(u32),
 tokenizer: *Tokenizer,
 
 pub fn init(arena: std.mem.Allocator, tokenizer: *Tokenizer) error{OutOfMemory}!Parser {
     var parser: @This() = .{
+        .extra_data = .empty,
         .arena = arena,
         .nodes = .empty,
         .tokenizer = tokenizer,
@@ -140,12 +149,13 @@ pub fn print(parser: *Parser, expression_index: u32) void {
             parser.print(expression.value.children[0]);
             parser.print(expression.value.children[1]);
         },
+        .statment => {},
     }
     std.debug.print(")", .{});
 }
 
 fn parsePrefix(p: *Parser) Error!u32 {
-    const token = p.tokenizer.peek().?;
+    const token = p.tokenizer.peek() orelse return 0;
     const expr_type: ExpressionType = switch (token.type) {
         .minus => .negation,
         .bang => .not,
@@ -259,6 +269,7 @@ fn parsePrimaryExpression(p: *Parser) Error!u32 {
 
 fn parseExpressionPresedence(p: *Parser, min_prec: i8) Error!u32 {
     var node = try p.parsePrefix();
+    if (node == 0) return 0;
 
     while (true) {
         const token = p.tokenizer.peek() orelse return node;
@@ -280,6 +291,57 @@ fn parseExpressionPresedence(p: *Parser, min_prec: i8) Error!u32 {
     return node;
 }
 
-pub fn parseExpression(p: *Parser) !u32 {
+fn parseExpression(p: *Parser) !u32 {
     return p.parseExpressionPresedence(0);
+}
+
+pub fn parseStatement(p: *Parser) !u32 {
+    const expr = if (p.check(.print)) blk: {
+        try p.consume(.print);
+        const expr = try p.parseExpression();
+        if (expr == 0) return 0;
+        break :blk try p.addNode(.{
+            .type = .print_statement,
+            .source_loc = p.tokenizer.position,
+            .value = .{
+                .children = .{
+                    expr,
+                    undefined,
+                },
+            },
+        });
+    } else blk: {
+        const expr = try p.parseExpression();
+        if (expr == 0) return 0;
+        break :blk try p.addNode(.{
+            .type = .expr_statement,
+            .source_loc = p.tokenizer.position,
+            .value = .{
+                .children = .{
+                    expr,
+                    undefined,
+                },
+            },
+        });
+    };
+
+    try p.consume(.semicolon);
+
+    return expr;
+}
+
+pub fn parseProgram(p: *Parser) !u32 {
+    const start = p.extra_data.items.len;
+    while (true) {
+        const statement = try p.parseStatement();
+        if (statement == 0) break;
+        try p.extra_data.append(p.arena, statement);
+    }
+    const end = p.extra_data.items.len;
+
+    return p.addNode(.{
+        .type = .program,
+        .source_loc = 0,
+        .value = .{ .children = .{ @intCast(start), @intCast(end) } },
+    });
 }

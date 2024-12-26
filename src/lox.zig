@@ -37,19 +37,20 @@ pub fn run(arena: std.mem.Allocator, source: []const u8) void {
     // var number_of_errors: usize = 0;
     var parser = Parser.init(arena, &tokenizer) catch return;
 
-    const expr = parser.parseExpression() catch return;
+    const expr = parser.parseProgram() catch return;
     parser.print(expr);
     const result = @import("Interpreter.zig").interpret(
         arena,
         source,
         parser.nodes.items,
+        parser.extra_data.items,
         expr,
     ) catch |e| {
         log.err("{s}", .{@errorName(e)});
         return;
     };
     std.debug.print("\n", .{});
-    result.print();
+    std.debug.print("{}", .{result});
 
     std.debug.print("\n", .{});
 }
