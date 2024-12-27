@@ -58,7 +58,7 @@ pub const ExpressionType = enum {
         literal,
         unary,
         binary,
-        statement,
+        list,
     } {
         return switch (self) {
             .string,
@@ -82,11 +82,11 @@ pub const ExpressionType = enum {
             => .binary,
             .not,
             .negation,
-            => .unary,
             .print_statement,
             .expr_statement,
+            => .unary,
             .program,
-            => .statement,
+            => .list,
         };
     }
 };
@@ -149,20 +149,11 @@ pub fn print(parser: *Parser, expression_index: u32) void {
             parser.print(expression.value.children[0]);
             parser.print(expression.value.children[1]);
         },
-        .statement => {
-            switch (expression.type) {
-                .print_statement, .expr_statement => {
-                    std.debug.print(" ", .{});
-                    parser.print(expression.value.children[0]);
-                },
-                .program => {
-                    const start, const end = expression.value.children;
-                    for (parser.extra_data.items[start..end]) |node| {
-                        std.debug.print("\n", .{});
-                        parser.print(node);
-                    }
-                },
-                else => unreachable,
+        .list => {
+            const start, const end = expression.value.children;
+            for (parser.extra_data.items[start..end]) |node| {
+                std.debug.print("\n", .{});
+                parser.print(node);
             }
         },
     }

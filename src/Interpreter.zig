@@ -86,6 +86,11 @@ pub fn interpret(
                         return error.RuntimeError;
                     },
                 },
+                .print_statement => blk: {
+                    std.debug.print("{s}\n", .{result});
+                    break :blk .nil;
+                },
+                .expr_statement => .nil,
                 else => unreachable,
             };
         },
@@ -165,29 +170,8 @@ pub fn interpret(
                 else => unreachable,
             }
         },
-        .statement => {
+        .list => {
             switch (expression.type) {
-                .print_statement => {
-                    const value = try interpret(
-                        arena,
-                        source,
-                        nodes,
-                        extra,
-                        expression.value.children[0],
-                    );
-                    std.debug.print("{s}\n", .{value});
-                    return .nil;
-                },
-                .expr_statement => {
-                    _ = try interpret(
-                        arena,
-                        source,
-                        nodes,
-                        extra,
-                        expression.value.children[0],
-                    );
-                    return .nil;
-                },
                 .program => {
                     const start, const end = expression.value.children;
                     for (extra[start..end]) |node| {
