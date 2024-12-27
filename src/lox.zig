@@ -55,7 +55,7 @@ pub fn run(arena: std.mem.Allocator, source: []const u8) void {
     std.debug.print("\n", .{});
 }
 
-pub fn report(source_code: []const u8, byte: u32, message: []const u8) void {
+pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args: anytype) void {
     const stdout = std.io.getStdOut().writer();
 
     var line_iter = std.mem.splitScalar(u8, source_code, '\n');
@@ -70,11 +70,12 @@ pub fn report(source_code: []const u8, byte: u32, message: []const u8) void {
             stdout.print(
                 \\
                 \\
-                \\Error: {s}
+                \\Error: 
+            ++ fmt ++
+                \\
                 \\{d:>4} | {s}
                 \\
-            , .{
-                message,
+            , args ++ .{
                 line_number + 1,
                 line,
             }) catch @panic("failed to write to stdout");

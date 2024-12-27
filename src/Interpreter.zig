@@ -43,15 +43,6 @@ const Value = union(enum) {
             .bool => |b| try writer.writeAll(if (b) "true" else "false"),
         }
     }
-
-    // pub fn format(v: Value, writer: anytype) !void {
-    //     return switch (v) {
-    //         .nil => writer.writeAll("nil"),
-    //         .number => |n| writer.print("{d}", .{n}),
-    //         .string => |s| writer.writeAll(s),
-    //         .bool => |b| writer.writeAll(if (b) "true" else "false"),
-    //     };
-    // }
 };
 
 pub fn interpret(
@@ -89,11 +80,8 @@ pub fn interpret(
                         report(
                             source,
                             expression.source_loc,
-                            try std.fmt.allocPrint(
-                                arena,
-                                "Can't negate {s}",
-                                .{@tagName(result)},
-                            ),
+                            "Can't negate {s}",
+                            .{@tagName(result)},
                         );
                         return error.RuntimeError;
                     },
@@ -129,11 +117,8 @@ pub fn interpret(
                         report(
                             source,
                             expression.source_loc,
-                            try std.fmt.allocPrint(
-                                arena,
-                                "Can't {s} {s} and {s}",
-                                .{ op_name, @tagName(lhs), @tagName(rhs) },
-                            ),
+                            "Can't {s} {s} and {s}",
+                            .{ op_name, @tagName(lhs), @tagName(rhs) },
                         );
                         return error.RuntimeError;
                     }
@@ -155,11 +140,8 @@ pub fn interpret(
                     report(
                         source,
                         expression.source_loc,
-                        try std.fmt.allocPrint(
-                            arena,
-                            "Can't add {s} and {s}",
-                            .{ @tagName(lhs), @tagName(rhs) },
-                        ),
+                        "Can't add {s} and {s}",
+                        .{ @tagName(lhs), @tagName(rhs) },
                     );
                     return error.RuntimeError;
                 },

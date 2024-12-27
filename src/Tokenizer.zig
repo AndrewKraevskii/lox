@@ -96,7 +96,7 @@ pub fn next(self: *@This()) ?Token {
 
         break;
     }
-    report(self.source, self.position, "unexpected token");
+    report(self.source, self.position, "{s}", .{"unexpected token"});
     defer self.position += 1;
 
     return .{ .type = .invalid, .position = self.position };

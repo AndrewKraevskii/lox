@@ -210,15 +210,16 @@ fn consume(p: *Parser, expected_token: std.meta.Tag(TokenType)) Error!void {
         _ = p.tokenizer.next() orelse unreachable;
         return;
     }
-    p.err("expected token not found");
+    const found: []const u8 = if (p.tokenizer.peek()) |token| @tagName(token.type) else "EOF";
+    p.err("expected {s} but found {s}", .{ @tagName(expected_token), found });
     return error.ParseError;
 }
 
-fn err(p: *Parser, message: []const u8) void {
+fn err(p: *Parser, comptime fmt: []const u8, args: anytype) void {
     if (p.tokenizer.peek()) |token| {
-        report(p.tokenizer.source, token.position, message);
+        report(p.tokenizer.source, token.position, fmt, args);
     } else {
-        report(p.tokenizer.source, @intCast(p.tokenizer.source.len), message);
+        report(p.tokenizer.source, @intCast(p.tokenizer.source.len), fmt, args);
     }
 }
 
@@ -261,7 +262,7 @@ fn parsePrimaryExpression(p: *Parser) Error!u32 {
             return res;
         },
         else => {
-            p.err("unexpected token found");
+            p.err("unexpected token {s} found. Expected number, string, bool, nil, or (.", .{@tagName(expr.type)});
             return error.ParseError;
         },
     });
