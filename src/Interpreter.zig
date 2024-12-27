@@ -111,7 +111,7 @@ pub fn interpret(
                         const op_name = switch (op) {
                             .mult => "multiply",
                             .div => "divide",
-                            .binary_sub => "substract",
+                            .binary_sub => "subtract",
                             else => unreachable,
                         };
                         report(
@@ -165,7 +165,7 @@ pub fn interpret(
                 else => unreachable,
             }
         },
-        .statment => {
+        .statement => {
             switch (expression.type) {
                 .print_statement => {
                     const value = try interpret(
