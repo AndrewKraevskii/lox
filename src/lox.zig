@@ -17,15 +17,24 @@ pub fn runPrompt(arena: std.mem.Allocator) !void {
     const stdin = std.io.getStdIn().reader();
 
     var line: std.ArrayList(u8) = .init(arena);
+    var show_memory = false;
     while (true) {
         std.debug.print("> ", .{});
         stdin.readUntilDelimiterArrayList(&line, '\n', max_file_size) catch |err| switch (err) {
             error.EndOfStream => return,
             else => |other_errors| return other_errors,
         };
+        if (std.mem.containsAtLeast(u8, line.items, 1, ":mem")) {
+            show_memory = !show_memory;
+            continue;
+        }
         var run_arena = std.heap.ArenaAllocator.init(arena);
         defer run_arena.deinit();
         run(run_arena.allocator(), line.items);
+
+        if (show_memory) {
+            log.info("using {d} memory", .{run_arena.queryCapacity()});
+        }
     }
 }
 
