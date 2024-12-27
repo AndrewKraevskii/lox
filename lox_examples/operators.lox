@@ -1,1 +1,4 @@
-print 1;
+print "one";
+print true;
+print 2 + 1;
+2 / 10;

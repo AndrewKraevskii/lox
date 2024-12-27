@@ -48,6 +48,7 @@ pub fn run(arena: std.mem.Allocator, source: []const u8) void {
 
     const expr = parser.parseProgram() catch return;
     parser.print(expr);
+    std.debug.print("\n", .{});
     const result = @import("Interpreter.zig").interpret(
         arena,
         source,

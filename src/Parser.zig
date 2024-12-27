@@ -149,7 +149,22 @@ pub fn print(parser: *Parser, expression_index: u32) void {
             parser.print(expression.value.children[0]);
             parser.print(expression.value.children[1]);
         },
-        .statement => {},
+        .statement => {
+            switch (expression.type) {
+                .print_statement, .expr_statement => {
+                    std.debug.print(" ", .{});
+                    parser.print(expression.value.children[0]);
+                },
+                .program => {
+                    const start, const end = expression.value.children;
+                    for (parser.extra_data.items[start..end]) |node| {
+                        std.debug.print("\n", .{});
+                        parser.print(node);
+                    }
+                },
+                else => unreachable,
+            }
+        },
     }
     std.debug.print(")", .{});
 }
@@ -339,6 +354,10 @@ pub fn parseProgram(p: *Parser) !u32 {
         try p.extra_data.append(p.arena, statement);
     }
     const end = p.extra_data.items.len;
+
+    if (p.tokenizer.peek()) |token| {
+        p.err("expected EOF but found {s}", .{@tagName(token.type)});
+    }
 
     return p.addNode(.{
         .type = .program,

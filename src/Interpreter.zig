@@ -175,7 +175,7 @@ pub fn interpret(
                         extra,
                         expression.value.children[0],
                     );
-                    std.debug.print("{s}", .{value});
+                    std.debug.print("{s}\n", .{value});
                     return .nil;
                 },
                 .expr_statement => {
