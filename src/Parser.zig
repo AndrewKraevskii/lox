@@ -97,6 +97,7 @@ pub const Expression = struct {
     value: union {
         string: []const u8,
         number: f64,
+        // indecies into nodes or slice into extra_data
         children: [2]u32,
     },
 };

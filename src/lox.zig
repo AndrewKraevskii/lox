@@ -18,6 +18,7 @@ pub fn runPrompt(arena: std.mem.Allocator) !void {
 
     var line: std.ArrayList(u8) = .init(arena);
     var show_memory = false;
+
     while (true) {
         std.debug.print("> ", .{});
         stdin.readUntilDelimiterArrayList(&line, '\n', max_file_size) catch |err| switch (err) {
@@ -49,11 +50,14 @@ pub fn run(arena: std.mem.Allocator, source: []const u8) void {
     const expr = parser.parseProgram() catch return;
     parser.print(expr);
     std.debug.print("\n", .{});
-    const result = @import("Interpreter.zig").interpret(
-        arena,
-        source,
-        parser.nodes.items,
-        parser.extra_data.items,
+
+    var interpreter = @import("Interpreter.zig"){
+        .arena = arena,
+        .source = source,
+        .nodes = parser.nodes.items,
+        .extra = parser.extra_data.items,
+    };
+    const result = interpreter.interpret(
         expr,
     ) catch |e| {
         log.err("{s}", .{@errorName(e)});

@@ -45,14 +45,16 @@ const Value = union(enum) {
     }
 };
 
+arena: std.mem.Allocator,
+source: []const u8,
+nodes: []const Expression,
+extra: []u32,
+
 pub fn interpret(
-    arena: std.mem.Allocator,
-    source: []const u8,
-    nodes: []const Expression,
-    extra: []u32,
+    i: *@This(),
     expr_id: u32,
 ) error{ RuntimeError, OutOfMemory }!Value {
-    const expression = nodes[expr_id];
+    const expression = i.nodes[expr_id];
     switch (expression.type.kind()) {
         .literal => {
             return switch (expression.type) {
@@ -65,11 +67,7 @@ pub fn interpret(
             };
         },
         .unary => {
-            const result = try interpret(
-                arena,
-                source,
-                nodes,
-                extra,
+            const result = try i.interpret(
                 expression.value.children[0],
             );
             return switch (expression.type) {
@@ -78,7 +76,7 @@ pub fn interpret(
                     .number => |n| .{ .number = -n },
                     else => {
                         report(
-                            source,
+                            i.source,
                             expression.source_loc,
                             "Can't negate {s}",
                             .{@tagName(result)},
@@ -95,18 +93,10 @@ pub fn interpret(
             };
         },
         .binary => {
-            const lhs = try interpret(
-                arena,
-                source,
-                nodes,
-                extra,
+            const lhs = try i.interpret(
                 expression.value.children[0],
             );
-            const rhs = try interpret(
-                arena,
-                source,
-                nodes,
-                extra,
+            const rhs = try i.interpret(
                 expression.value.children[1],
             );
 
@@ -120,7 +110,7 @@ pub fn interpret(
                             else => unreachable,
                         };
                         report(
-                            source,
+                            i.source,
                             expression.source_loc,
                             "Can't {s} {s} and {s}",
                             .{ op_name, @tagName(lhs), @tagName(rhs) },
@@ -140,10 +130,10 @@ pub fn interpret(
                         return .{ .number = lhs.number + rhs.number };
                     }
                     if (lhs == .string and rhs == .string) {
-                        return .{ .string = try std.mem.concat(arena, u8, &.{ lhs.string, rhs.string }) };
+                        return .{ .string = try std.mem.concat(i.arena, u8, &.{ lhs.string, rhs.string }) };
                     }
                     report(
-                        source,
+                        i.source,
                         expression.source_loc,
                         "Can't add {s} and {s}",
                         .{ @tagName(lhs), @tagName(rhs) },
@@ -174,8 +164,8 @@ pub fn interpret(
             switch (expression.type) {
                 .program => {
                     const start, const end = expression.value.children;
-                    for (extra[start..end]) |node| {
-                        _ = try interpret(arena, source, nodes, extra, node);
+                    for (i.extra[start..end]) |node| {
+                        _ = try i.interpret(node);
                     }
                     return .nil;
                 },
