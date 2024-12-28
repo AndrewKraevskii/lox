@@ -1,23 +1,22 @@
 const std = @import("std");
-
-const lox = @import("lox.zig");
+const Chunk = @import("Chunk.zig");
+const debug = @import("debug.zig");
 
 pub fn main() !void {
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{}).init;
     defer _ = gpa_impl.deinit();
     const gpa = gpa_impl.allocator();
 
-    var arena_impl = std.heap.ArenaAllocator.init(gpa);
-    defer arena_impl.deinit();
-    const arena = arena_impl.allocator();
+    var chunk: Chunk = .init(gpa);
+    defer chunk.deinit();
 
-    const args = try std.process.argsAlloc(arena);
-    switch (args.len) {
-        0 => fatal("got 0 arguments", .{}),
-        1 => try lox.runPrompt(arena),
-        2 => try lox.runFile(arena, args[1]),
-        else => fatal("Usage: jlox [script]", .{}),
-    }
+    // chunk.appendAssumeCapacity(@intFromEnum(OpCode.@"return"));
+    const constant = try chunk.addConstant(.{ .inner = 1.2 });
+    try chunk.writeOpcode(.constant, 0);
+    try chunk.writeByte(constant, 0);
+    try chunk.writeOpcode(.@"return", 0);
+
+    debug.disassembleChunk(&chunk, null);
 }
 
 pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
