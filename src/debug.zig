@@ -25,7 +25,7 @@ pub fn disassembleInstruction(chunk: *const Chunk, source: ?[]const u8, offset: 
         },
         .constant => {
             print("{s} ", .{@tagName(opcode)});
-            const constant_index = chunk.code.items[offset];
+            const constant_index = chunk.code.items[offset + 1];
             print("0x{d:02} ", .{constant_index});
             print("{}", .{chunk.constants.items[constant_index]});
             print("\n", .{});

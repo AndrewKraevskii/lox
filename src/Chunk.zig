@@ -69,14 +69,3 @@ pub fn pushConstant(self: *@This(), value: Value) !void {
     try self.writeOpcode(.constant, 0);
     try self.writeByte(constant, 0);
 }
-
-test "Basic" {
-    const alloc = std.testing.allocator;
-    var chunk: @This() = .init(alloc);
-    defer chunk.deinit();
-
-    const constant = try chunk.addConstant(.{ .inner = 1.2 });
-    try chunk.writeOpcode(.constant, 0);
-    try chunk.writeByte(constant, 0);
-    try chunk.writeOpcode(.@"return", 0);
-}

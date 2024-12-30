@@ -3,6 +3,8 @@ const Vm = @This();
 const std = @import("std");
 const debug = @import("debug.zig");
 const debug_trace_execution = @import("main.zig").debug_trace_execution;
+const is_test = @import("builtin").is_test;
+const stdout = if (is_test) std.io.null_writer else std.io.getStdOut().writer();
 
 const stack_max = 256;
 
@@ -44,7 +46,7 @@ pub fn run(vm: *@This()) Error!void {
         switch (instruction) {
             .@"return" => {
                 const value = vm.stack.pop();
-                std.debug.print("{}\n", .{value});
+                stdout.print("{}\n", .{value}) catch return error.Runtime;
                 return;
             },
             .add => {

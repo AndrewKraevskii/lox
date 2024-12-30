@@ -13,8 +13,6 @@ pub fn build(b: *std.Build) void {
     const exe = b.addExecutable(.{
         .name = "zlox",
         .root_module = exe_mod,
-        .use_llvm = false,
-        .use_lld = false,
     });
 
     b.installArtifact(exe);
