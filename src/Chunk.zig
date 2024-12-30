@@ -2,10 +2,15 @@ const std = @import("std");
 
 pub const OpCode = enum(u8) {
     constant,
+    negate,
+    add,
+    subtract,
+    multiply,
+    divide,
     @"return",
 };
 
-pub const Value = struct {
+pub const Value = extern struct {
     inner: f64,
 
     pub fn format(
@@ -52,8 +57,26 @@ pub fn writeByte(self: *@This(), byte: u8, source_byte: u32) error{OutOfMemory}!
     try self.debug_info.append(self.gpa, source_byte);
 }
 
-pub fn addConstant(self: *@This(), value: Value) error{OutOfMemory}!u8 {
+pub fn addConstant(self: *@This(), value: Value) error{ OutOfMemory, NoSpaceForConstant }!u8 {
     const position = self.constants.items.len;
+    if (position == std.math.maxInt(u8)) return error.NoSpaceForConstant;
     try self.constants.append(self.gpa, value);
     return @intCast(position);
+}
+
+pub fn pushConstant(self: *@This(), value: Value) !void {
+    const constant = try self.addConstant(value);
+    try self.writeOpcode(.constant, 0);
+    try self.writeByte(constant, 0);
+}
+
+test "Basic" {
+    const alloc = std.testing.allocator;
+    var chunk: @This() = .init(alloc);
+    defer chunk.deinit();
+
+    const constant = try chunk.addConstant(.{ .inner = 1.2 });
+    try chunk.writeOpcode(.constant, 0);
+    try chunk.writeByte(constant, 0);
+    try chunk.writeOpcode(.@"return", 0);
 }
