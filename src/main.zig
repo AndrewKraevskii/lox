@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Chunk = @import("Chunk.zig");
 const debug = @import("debug.zig");
+const VM = @import("VM.zig");
 
 pub const debug_trace_execution = false;
 
@@ -35,7 +36,10 @@ fn repl(gpa: std.mem.Allocator) !void {
             error.StreamTooLong => {},
             else => return e,
         };
-        interpret(gpa, line.slice());
+        interpret(gpa, line.slice()) catch |e| {
+            std.log.err("{s}", .{@errorName(e)});
+        };
+
         line.clear();
     }
 }
@@ -46,20 +50,28 @@ fn runFile(gpa: std.mem.Allocator, path: []const u8) void {
     };
     defer gpa.free(program);
 
-    interpret(gpa, program);
+    interpret(gpa, program) catch |e| {
+        std.log.err("{s}", .{@errorName(e)});
+    };
 }
 
-fn interpret(gpa: std.mem.Allocator, program: []const u8) void {
-    _ = gpa; // autofix
-    const stdout = std.io.getStdIn().writer();
-    var tokenizer = @import("Tokenizer.zig").init(program);
-    while (tokenizer.next()) |token| {
-        if (token.type == .invalid) {
-            report(program, token.position, "{s}", .{token.type.invalid});
-            continue;
-        }
-        stdout.print("{}\n", .{token.type}) catch @panic("Failed to print");
-    }
+fn interpret(gpa: std.mem.Allocator, program: []const u8) error{ OutOfMemory, Compile }!void {
+    var chunk: Chunk = .init(gpa);
+    defer chunk.deinit();
+    try compile(program, &chunk);
+
+    var diagnostics: VM.Diagnostics = .{};
+    VM.interpret(&chunk, &diagnostics) catch {
+        const source_byte = if (diagnostics.byte < chunk.debug_info.items.len) chunk.debug_info.items[diagnostics.byte] else 0;
+        report(program, source_byte, "{s}", .{diagnostics.message});
+    };
+    // std.debug.print("{s}", .{diagnostics.message});
+}
+
+fn compile(source: []const u8, chunk: *Chunk) !void {
+    _ = chunk; // autofix
+    _ = source; // autofix
+
 }
 
 pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
@@ -68,6 +80,8 @@ pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args: anytype) void {
+    std.debug.assert(byte <= source_code.len);
+
     const stdout = std.io.getStdOut().writer();
 
     var line_iter = std.mem.splitScalar(u8, source_code, '\n');
@@ -96,11 +110,12 @@ pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args
             return;
         }
     }
-    @panic("saa");
+    unreachable;
 }
 
 test {
     _ = @import("Tokenizer.zig");
+    _ = @import("VM.zig");
 }
 
 test Chunk {
@@ -119,5 +134,5 @@ test Chunk {
     try chunk.writeOpcode(.negate, 0);
     try chunk.writeOpcode(.@"return", 0);
 
-    try @import("VM.zig").interpret(&chunk);
+    try VM.interpret(&chunk, null);
 }

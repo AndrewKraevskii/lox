@@ -309,8 +309,6 @@ pub const TokenType = union(enum) {
 };
 
 test "tokenize everything" {
-    var timer = try std.time.Timer.start();
-    defer std.log.err("{}", .{std.fmt.fmtDuration(timer.read())});
     var tests_dir = try std.fs.cwd().openDir("test", .{
         .iterate = true,
     });
