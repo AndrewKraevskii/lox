@@ -2,7 +2,6 @@ const std = @import("std");
 const is_test = @import("builtin").is_test;
 
 const Chunk = @import("Chunk.zig");
-const Value = Chunk.Value;
 const debug = @import("debug.zig");
 const debug_trace_execution = @import("main.zig").debug_trace_execution;
 
@@ -14,7 +13,7 @@ const stack_max = 256;
 chunk: *const Chunk,
 
 /// instruction pointer
-// TODO: in book he sais pointer would be faster than index into array check if its true.
+// TODO: in book he says pointer would be faster than index into array check if its true.
 // https://craftinginterpreters.com/a-virtual-machine.html#:~:text=Its%20type%20is%20a%20byte%20pointer.%20We%20use%20an%20actual%20real%20C%20pointer%20pointing%20right%20into%20the%20middle%20of%20the%20bytecode%20array%20instead%20of%20something%20like%20an%20integer%20index%20because%20it%E2%80%99s%20faster%20to%20dereference%20a%20pointer%20than%20look%20up%20an%20element%20in%20an%20array%20by%20index.
 ip: u32,
 stack: std.BoundedArray(Chunk.Value, stack_max),
@@ -42,7 +41,7 @@ pub fn interpret(chunk: *const Chunk, diagnostics: ?*Diagnostics) Error!void {
 }
 
 pub fn run(vm: *@This()) Error!void {
-    // TODO: gotta go fast use labled switch
+    // TODO: gotta go fast use labeled switch
     while (true) {
         if (debug_trace_execution) {
             std.debug.print("          ", .{});
@@ -55,7 +54,7 @@ pub fn run(vm: *@This()) Error!void {
         const instruction = vm.readOpCode() orelse return error.Runtime;
         switch (instruction) {
             .@"return" => {
-                const value = vm.stack.popOrNull() orelse return error.Runtime;
+                const value = try vm.popValue();
                 stdout.print("{}\n", .{value}) catch return error.Runtime;
                 return;
             },
@@ -64,8 +63,8 @@ pub fn run(vm: *@This()) Error!void {
             .multiply,
             .divide,
             => |op| {
-                const b = vm.stack.popOrNull() orelse return error.Runtime;
-                const a = vm.stack.popOrNull() orelse return error.Runtime;
+                const b = try vm.popValue();
+                const a = try vm.popValue();
                 const result = switch (op) {
                     .add => a.inner + b.inner,
                     .subtract => a.inner - b.inner,
@@ -81,12 +80,24 @@ pub fn run(vm: *@This()) Error!void {
                 vm.stack.append(constant) catch return error.Runtime;
             },
             .negate => {
-                const value = vm.stack.popOrNull() orelse return error.Runtime;
+                const value = try vm.popValue();
                 vm.stack.appendAssumeCapacity(.{ .inner = -value.inner });
             },
         }
     }
     return;
+}
+
+fn popValue(vm: *@This()) error{Runtime}!Chunk.Value {
+    return vm.stack.popOrNull() orelse {
+        if (vm.ip == vm.chunk.code.items.len) {
+            if (vm.diagnostics) |d| {
+                d.byte = vm.ip;
+                d.message = "not enough values on stack";
+            }
+        }
+        return error.Runtime;
+    };
 }
 
 fn readByte(vm: *@This()) ?u8 {

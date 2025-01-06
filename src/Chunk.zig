@@ -64,8 +64,27 @@ pub fn addConstant(self: *@This(), value: Value) error{ OutOfMemory, NoSpaceForC
     return @intCast(position);
 }
 
-pub fn pushConstant(self: *@This(), value: Value) !void {
-    const constant = try self.addConstant(value);
-    try self.writeOpcode(.constant, 0);
-    try self.writeByte(constant, 0);
+fn pushConstant(c: *Chunk, v: Value) error{ OutOfMemory, NoSpaceForConstant }!void {
+    const constant = try c.addConstant(v);
+    try c.writeOpcode(.constant, 0);
+    try c.writeByte(constant, 0);
+}
+
+const Chunk = @This();
+
+test Chunk {
+    var chunk: Chunk = .init(std.testing.allocator);
+    defer chunk.deinit();
+
+    try chunk.pushConstant(.{ .inner = 1.2 });
+    try chunk.pushConstant(.{ .inner = 3.4 });
+
+    try chunk.writeOpcode(.add, 0);
+
+    try chunk.pushConstant(.{ .inner = 5.6 });
+
+    try chunk.writeOpcode(.divide, 0);
+
+    try chunk.writeOpcode(.negate, 0);
+    try chunk.writeOpcode(.@"return", 0);
 }

@@ -1,10 +1,10 @@
 const std = @import("std");
 
 const Chunk = @import("Chunk.zig");
-const debug = @import("debug.zig");
 const VM = @import("VM.zig");
+const compile = @import("compiler.zig").compile;
 
-pub const debug_trace_execution = false;
+pub const debug_trace_execution = true;
 
 pub fn main() !void {
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{}).init;
@@ -17,8 +17,8 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(arena.allocator());
     switch (args.len) {
         0 => fatal("got 0 arguments", .{}),
-        1 => try repl(std.testing.failing_allocator),
-        2 => runFile(std.testing.failing_allocator, args[1]),
+        1 => try repl(arena.allocator()),
+        2 => runFile(arena.allocator(), args[1]),
         else => fatal("Usage: jlox [script]", .{}),
     }
 }
@@ -63,15 +63,8 @@ fn interpret(gpa: std.mem.Allocator, program: []const u8) error{ OutOfMemory, Co
     var diagnostics: VM.Diagnostics = .{};
     VM.interpret(&chunk, &diagnostics) catch {
         const source_byte = if (diagnostics.byte < chunk.debug_info.items.len) chunk.debug_info.items[diagnostics.byte] else 0;
-        report(program, source_byte, "{s}", .{diagnostics.message});
+        report(program, source_byte, "interpret error: {s}", .{diagnostics.message});
     };
-    // std.debug.print("{s}", .{diagnostics.message});
-}
-
-fn compile(source: []const u8, chunk: *Chunk) !void {
-    _ = chunk; // autofix
-    _ = source; // autofix
-
 }
 
 pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
@@ -80,6 +73,7 @@ pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args: anytype) void {
+    // std.debug.print("{d}\n", .{byte});
     std.debug.assert(byte <= source_code.len);
 
     const stdout = std.io.getStdOut().writer();
@@ -91,7 +85,6 @@ pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args
         const start_of_line_byte_pos = line_iter.index orelse source_code.len;
         const end_of_line_byte_pos = start_of_line_byte_pos + line.len;
         _ = line_iter.next();
-
         if (start_of_line_byte_pos <= byte and byte <= end_of_line_byte_pos) {
             stdout.print(
                 \\
@@ -116,23 +109,4 @@ pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args
 test {
     _ = @import("Tokenizer.zig");
     _ = @import("VM.zig");
-}
-
-test Chunk {
-    var chunk: Chunk = .init(std.testing.allocator);
-    defer chunk.deinit();
-
-    try chunk.pushConstant(.{ .inner = 1.2 });
-    try chunk.pushConstant(.{ .inner = 3.4 });
-
-    try chunk.writeOpcode(.add, 0);
-
-    try chunk.pushConstant(.{ .inner = 5.6 });
-
-    try chunk.writeOpcode(.divide, 0);
-
-    try chunk.writeOpcode(.negate, 0);
-    try chunk.writeOpcode(.@"return", 0);
-
-    try VM.interpret(&chunk, null);
 }

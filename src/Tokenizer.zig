@@ -1,5 +1,4 @@
 const std = @import("std");
-const log = std.log.scoped(.tokenizer);
 
 source: []const u8,
 position: u32,
@@ -13,11 +12,11 @@ pub fn init(source: []const u8) @This() {
     };
 }
 
-pub fn next(self: *@This()) ?Token {
+pub fn next(self: *@This()) Token {
     outer: while (true) {
-        if (self.finished()) return null;
+        if (self.finished()) return .{ .type = .eof, .position = self.position };
         self.skipWhitespaces();
-        if (self.finished()) return null;
+        if (self.finished()) return .{ .type = .eof, .position = self.position };
 
         const start = self.position;
         if (std.mem.startsWith(u8, self.source[self.position..], "//")) {
@@ -49,7 +48,7 @@ pub fn next(self: *@This()) ?Token {
             const end = end: while (true) {
                 const end = std.mem.indexOfScalarPos(u8, self.source, self.position + 1, '\"') orelse {
                     defer self.position += 1;
-                    return .{ .position = start, .type = .{ .invalid = "unterminated string" } };
+                    return .{ .position = start, .type = .{ .@"error" = "unterminated string" } };
                 };
                 if (self.source[end - 1] == '\\') {
                     self.position = @intCast(end);
@@ -100,19 +99,12 @@ pub fn next(self: *@This()) ?Token {
     }
     defer self.position += 1;
 
-    return .{ .position = self.position, .type = .{ .invalid = "Unknown" } };
+    return .{ .position = self.position, .type = .{ .@"error" = "unexpected character" } };
 }
 
 pub fn peek(self: *@This()) ?Token {
     const position = self.position;
     defer self.position = position;
-    return self.next();
-}
-
-pub fn peekNext(self: *@This()) ?Token {
-    const position = self.position;
-    defer self.position = position;
-    self.next();
     return self.next();
 }
 
@@ -220,7 +212,8 @@ pub const TokenType = union(enum) {
     @"var",
     @"while",
 
-    invalid: []const u8,
+    @"error": []const u8,
+    eof,
 
     pub fn format(
         token_type: @This(),
@@ -256,7 +249,7 @@ pub const TokenType = union(enum) {
                 try writer.writeAll(s);
                 return;
             },
-            .invalid => |s| {
+            .@"error" => |s| {
                 try writer.writeAll(s);
                 return;
             },
@@ -280,6 +273,7 @@ pub const TokenType = union(enum) {
             .true => "true",
             .@"var" => "var",
             .@"while" => "while",
+            .eof => "eof",
         };
         try writer.writeAll(string);
     }

@@ -4,6 +4,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const no_bin = b.option(bool, "no-bin", "skip emmiting binary") orelse false;
+
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -13,9 +15,15 @@ pub fn build(b: *std.Build) void {
     const exe = b.addExecutable(.{
         .name = "zlox",
         .root_module = exe_mod,
+        // .use_llvm = false,
+        // .use_lld = false,
     });
 
-    b.installArtifact(exe);
+    if (no_bin) {
+        b.getInstallStep().dependOn(&exe.step);
+    } else {
+        b.installArtifact(exe);
+    }
 
     const exe_unit_tests = b.addTest(.{
         .root_module = exe_mod,
