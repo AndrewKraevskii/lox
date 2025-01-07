@@ -38,7 +38,7 @@ pub fn format(
             try writer.print("{}", .{b});
         },
         .nil => {
-            // try writer.writeAll("nil");
+            try writer.writeAll("nil");
         },
     }
 }

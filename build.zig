@@ -6,8 +6,10 @@ pub fn build(b: *std.Build) void {
 
     const no_bin = b.option(bool, "no-bin", "skip emmiting binary") orelse false;
 
+    const is_wasm = target.result.isWasm();
+
     const exe_mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path(if (is_wasm) "src/wasm_entry.zig" else "src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -15,9 +17,12 @@ pub fn build(b: *std.Build) void {
     const exe = b.addExecutable(.{
         .name = "zlox",
         .root_module = exe_mod,
-        // .use_llvm = false,
-        // .use_lld = false,
     });
+
+    if (target.result.isWasm()) {
+        exe.rdynamic = true;
+        exe.entry = .disabled;
+    }
 
     if (no_bin) {
         b.getInstallStep().dependOn(&exe.step);

@@ -4,7 +4,7 @@ const Chunk = @import("Chunk.zig");
 const VM = @import("VM.zig");
 const compile = @import("compiler.zig").compile;
 
-pub const debug_trace_execution = true;
+pub const debug_trace_execution = false;
 
 pub fn main() !void {
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{}).init;
@@ -19,7 +19,7 @@ pub fn main() !void {
         0 => fatal("got 0 arguments", .{}),
         1 => try repl(arena.allocator()),
         2 => runFile(arena.allocator(), args[1]),
-        else => fatal("Usage: jlox [script]", .{}),
+        else => fatal("Usage: clox [script]", .{}),
     }
 }
 
@@ -55,7 +55,7 @@ fn runFile(gpa: std.mem.Allocator, path: []const u8) void {
     };
 }
 
-fn interpret(gpa: std.mem.Allocator, program: []const u8) error{ OutOfMemory, Compile }!void {
+pub fn interpret(gpa: std.mem.Allocator, program: []const u8) error{ OutOfMemory, Compile }!void {
     var chunk: Chunk = .init(gpa);
     defer chunk.deinit();
     try compile(program, &chunk);
@@ -67,7 +67,7 @@ fn interpret(gpa: std.mem.Allocator, program: []const u8) error{ OutOfMemory, Co
     };
 }
 
-pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
+fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
     std.log.err(fmt, args);
     std.process.exit(1);
 }
@@ -75,7 +75,7 @@ pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args: anytype) void {
     std.debug.assert(byte <= source_code.len);
 
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.io.null_writer;
 
     var line_iter = std.mem.splitScalar(u8, source_code, '\n');
     var line_number: u32 = 0;

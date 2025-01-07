@@ -7,7 +7,7 @@ const debug = @import("debug.zig");
 const debug_trace_execution = @import("main.zig").debug_trace_execution;
 
 const VM = @This();
-const stdout = if (is_test) std.io.null_writer else std.io.getStdOut().writer();
+const stdout = if (is_test or @import("builtin").target.isWasm()) std.io.null_writer else std.io.getStdOut().writer();
 
 const stack_max = 256;
 
@@ -56,7 +56,7 @@ pub fn run(vm: *@This()) Error!void {
         switch (instruction) {
             .@"return" => {
                 const value = try vm.popValue();
-                stdout.print("{}\n", .{value}) catch return error.Runtime;
+                std.log.info("{}", .{value});
                 return;
             },
             inline .add,
