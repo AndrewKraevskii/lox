@@ -1,10 +1,12 @@
-import wasm_path from "./zig-out/bin/zlox.wasm";
-const wasm_data = await Bun.file(wasm_path).arrayBuffer();
-const wasm = await WebAssembly.instantiate(wasm_data,
+const wasm_path = "./zig-out/bin/zlox.wasm";
+
+
+const wasm = await WebAssembly.instantiateStreaming(fetch(wasm_path),
   {
     js: {
       log: function(ptr, len) {
         const msg = decodeString(ptr, len);
+        logs.push(msg);
         console.log(msg);
       },
       panic: function(ptr, len) {
@@ -32,5 +34,22 @@ function setInputString(s) {
   wasmArray.set(jsArray);
 }
 
-setInputString("1 + 1");
-wasm_exports.main();
+const input = document.querySelector("input");
+const list = document.querySelector("ul");
+var logs = ["Hello"]
+
+input.oninput = () => {
+  logs = []
+  setInputString(input.value);
+  wasm_exports.main();
+
+  // Clear the list first
+  list.innerHTML = '';
+
+  // Generate a list item for each string in the logs array
+  logs.forEach(log => {
+    const listItem = document.createElement('li');
+    listItem.textContent = log; // Set the text content to the log string
+    list.appendChild(listItem); // Append the list item to the unordered list
+  });
+}
