@@ -73,7 +73,6 @@ pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args: anytype) void {
-    // std.debug.print("{d}\n", .{byte});
     std.debug.assert(byte <= source_code.len);
 
     const stdout = std.io.getStdOut().writer();

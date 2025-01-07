@@ -18,7 +18,20 @@ pub fn disassembleInstruction(chunk: *const Chunk, source: ?[]const u8, offset: 
     };
     printSourceLine(chunk, source, offset);
     switch (opcode) {
-        .@"return", .negate, .add, .subtract, .multiply, .divide => {
+        .@"return",
+        .negate,
+        .add,
+        .subtract,
+        .multiply,
+        .divide,
+        .not,
+        .nil,
+        .true,
+        .false,
+        .equal,
+        .greater,
+        .less,
+        => {
             print("{s}", .{@tagName(opcode)});
             print("\n", .{});
             return offset + 1;

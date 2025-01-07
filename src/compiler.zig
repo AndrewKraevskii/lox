@@ -1,10 +1,11 @@
 const std = @import("std");
-const log = std.log.scoped(.compiler);
 
 const Chunk = @import("Chunk.zig");
 const report = @import("main.zig").report;
 const Tokenizer = @import("Tokenizer.zig");
-const Value = Chunk.Value;
+const Value = @import("Value.zig");
+
+const log = std.log.scoped(.compiler);
 
 const Compiler = @This();
 
@@ -77,46 +78,46 @@ const ParseRule = struct {
 
 const oper_table: std.EnumArray(std.meta.Tag(Tokenizer.TokenType), ParseRule) = .init(.{
     // zig fmt: off
-    .left_paren    = .{ .prefix = grouping, .infix = null,   .precedence = .none },
-    .right_paren   = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .left_brace    = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .right_brace   = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .comma         = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .dot           = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .minus         = .{ .prefix = unary,    .infix = binary, .precedence = .term },
-    .plus          = .{ .prefix = null,     .infix = binary, .precedence = .term },
-    .semicolon     = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .slash         = .{ .prefix = null,     .infix = binary, .precedence = .factor },
-    .star          = .{ .prefix = null,     .infix = binary, .precedence = .factor },
-    .bang          = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .bang_equal    = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .equal         = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .equal_equal   = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .greater       = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .greater_equal = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .less          = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .less_equal    = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .identifier    = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .string        = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .number        = .{ .prefix = number,   .infix = null,   .precedence = .none },
-    .@"and"        = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .class         = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .@"else"       = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .false         = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .@"for"        = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .fun           = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .@"if"         = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .nil           = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .@"or"         = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .print         = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .@"return"     = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .super         = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .this          = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .true          = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .@"var"        = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .@"while"      = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .@"error"      = .{ .prefix = null,     .infix = null,   .precedence = .none },
-    .eof           = .{ .prefix = null,     .infix = null,   .precedence = .none },
+    .left_paren    = .{ .prefix = grouping, .infix = null,   .precedence = .none     },
+    .right_paren   = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .left_brace    = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .right_brace   = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .comma         = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .dot           = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .minus         = .{ .prefix = unary,    .infix = binary, .precedence = .term     },
+    .plus          = .{ .prefix = unary,    .infix = binary, .precedence = .term     },
+    .semicolon     = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .slash         = .{ .prefix = null,     .infix = binary, .precedence = .factor   },
+    .star          = .{ .prefix = null,     .infix = binary, .precedence = .factor   },
+    .bang          = .{ .prefix = unary,    .infix = null,   .precedence = .none     },
+    .bang_equal    = .{ .prefix = null,     .infix = binary, .precedence = .equality },
+    .equal         = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .equal_equal   = .{ .prefix = null,     .infix = binary, .precedence = .equality },
+    .greater       = .{ .prefix = null,     .infix = binary, .precedence = .comparison },
+    .greater_equal = .{ .prefix = null,     .infix = binary, .precedence = .comparison },
+    .less          = .{ .prefix = null,     .infix = binary, .precedence = .comparison },
+    .less_equal    = .{ .prefix = null,     .infix = binary, .precedence = .comparison },
+    .identifier    = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .string        = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .number        = .{ .prefix = number,   .infix = null,   .precedence = .none     },
+    .@"and"        = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .class         = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .@"else"       = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .false         = .{ .prefix = literal,  .infix = null,   .precedence = .none     },
+    .@"for"        = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .fun           = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .@"if"         = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .nil           = .{ .prefix = literal,  .infix = null,   .precedence = .none     },
+    .@"or"         = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .print         = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .@"return"     = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .super         = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .this          = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .true          = .{ .prefix = literal,  .infix = null,   .precedence = .none     },
+    .@"var"        = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .@"while"      = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .@"error"      = .{ .prefix = null,     .infix = null,   .precedence = .none     },
+    .eof           = .{ .prefix = null,     .infix = null,   .precedence = .none     },
     // zig fmt: on
 });
 
@@ -130,6 +131,7 @@ fn parsePresedence(c: *Compiler, pres: Precedence) Error!void {
         try rule(c);
     } else {
         c.errorAtPrev("Expected expression.", .{});
+        return error.Compile;
     }
 
     while (pres.lessEq(oper_table.get(c.curr.type).precedence)) {
@@ -147,7 +149,8 @@ fn unary(c: *Compiler) Error!void {
 
     switch (token) {
         .minus => try c.emitOpcodePos(.negate, c.prev.position),
-        else => c.errorAtCurrent("unexpected prefix operator {}", .{c.prev.type}),
+        .bang => try c.emitOpcodePos(.not, c.prev.position),
+        else => unreachable,
     }
 }
 
@@ -163,6 +166,12 @@ fn binary(c: *Compiler) Error!void {
     try c.parsePresedence(prec.next());
 
     try switch (operator.type) {
+        .bang_equal => c.emitOpcodesPos(&.{ .equal, .not }, operator.position),
+        .equal_equal => c.emitOpcodePos(.equal, operator.position),
+        .greater => c.emitOpcodePos(.greater, operator.position),
+        .greater_equal => c.emitOpcodesPos(&.{ .less, .not }, operator.position),
+        .less => c.emitOpcodePos(.less, operator.position),
+        .less_equal => c.emitOpcodesPos(&.{ .greater, .not }, operator.position),
         .plus => c.emitOpcodePos(.add, operator.position),
         .minus => c.emitOpcodePos(.subtract, operator.position),
         .star => c.emitOpcodePos(.multiply, operator.position),
@@ -173,7 +182,7 @@ fn binary(c: *Compiler) Error!void {
 
 fn number(c: *Compiler) Error!void {
     const value = c.prev.type.number;
-    return c.emitConstant(.{ .inner = value }) catch |e| switch (e) {
+    return c.emitConstant(.number(value)) catch |e| switch (e) {
         error.OutOfMemory => error.OutOfMemory,
         error.NoSpaceForConstant => error.Compile,
     };
@@ -187,6 +196,15 @@ fn advance(c: *Compiler) void {
         if (c.curr.type != .@"error") break;
 
         c.errorAtCurrent("", .{});
+    }
+}
+
+fn literal(c: *Compiler) Error!void {
+    switch (c.prev.type) {
+        .nil => try c.emitOpcode(.nil),
+        .false => try c.emitOpcode(.false),
+        .true => try c.emitOpcode(.true),
+        else => unreachable,
     }
 }
 
@@ -212,11 +230,17 @@ fn errorAtPrev(c: *@This(), comptime fmt: []const u8, args: anytype) void {
 }
 
 fn emitByte(c: *Compiler, byte: u8) error{OutOfMemory}!void {
-    try c.chunk.writeByte(byte, c.tokenizer.position);
+    try c.chunk.writeByte(byte, c.prev.position);
 }
 
 fn emitOpcode(c: *Compiler, op: Chunk.OpCode) error{OutOfMemory}!void {
-    try c.chunk.writeOpcode(op, c.tokenizer.position);
+    try c.chunk.writeOpcode(op, c.prev.position);
+}
+
+fn emitOpcodesPos(c: *Compiler, ops: []const Chunk.OpCode, pos: u32) error{OutOfMemory}!void {
+    for (ops) |op| {
+        try c.emitOpcodePos(op, pos);
+    }
 }
 
 fn emitOpcodePos(c: *Compiler, op: Chunk.OpCode, pos: u32) error{OutOfMemory}!void {

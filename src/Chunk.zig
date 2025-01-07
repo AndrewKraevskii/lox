@@ -1,4 +1,5 @@
 const std = @import("std");
+const Value = @import("Value.zig");
 
 pub const OpCode = enum(u8) {
     constant,
@@ -7,20 +8,14 @@ pub const OpCode = enum(u8) {
     subtract,
     multiply,
     divide,
+    nil,
+    true,
+    false,
+    not,
+    equal,
+    greater,
+    less,
     @"return",
-};
-
-pub const Value = extern struct {
-    inner: f64,
-
-    pub fn format(
-        self: @This(),
-        comptime _: []const u8,
-        _: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        try writer.print("{d}", .{self.inner});
-    }
 };
 
 gpa: std.mem.Allocator,
