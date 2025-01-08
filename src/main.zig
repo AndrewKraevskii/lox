@@ -1,10 +1,12 @@
 const std = @import("std");
+const is_wasm = @import("builtin").target.isWasm();
 
 const Chunk = @import("Chunk.zig");
 const VM = @import("VM.zig");
 const compile = @import("compiler.zig").compile;
 
 pub const debug_trace_execution = false;
+const stdout = if (is_wasm) @import("wasm_entry.zig").writer else std.io.getStdOut().writer();
 
 pub fn main() !void {
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{}).init;
@@ -26,7 +28,6 @@ pub fn main() !void {
 fn repl(gpa: std.mem.Allocator) !void {
     var line: std.BoundedArray(u8, 1024) = .{};
     var stdin = std.io.getStdIn().reader();
-    const stdout = std.io.getStdIn().writer();
 
     while (true) {
         try stdout.writeAll("> ");
@@ -74,8 +75,6 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 
 pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args: anytype) void {
     std.debug.assert(byte <= source_code.len);
-
-    const stdout = std.io.null_writer;
 
     var line_iter = std.mem.splitScalar(u8, source_code, '\n');
     var line_number: u32 = 0;

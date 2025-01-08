@@ -1,5 +1,10 @@
-const wasm_path = "./zig-out/bin/zlox.wasm";
+const wasm_path = "./zlox.wasm";
 
+var stdout = ""
+
+const input = document.querySelector("textarea");
+const list = document.querySelector("ul");
+const stdout_el = document.querySelector("#stdout");
 
 const wasm = await WebAssembly.instantiateStreaming(fetch(wasm_path),
   {
@@ -8,6 +13,11 @@ const wasm = await WebAssembly.instantiateStreaming(fetch(wasm_path),
         const msg = decodeString(ptr, len);
         logs.push(msg);
         console.log(msg);
+      },
+      stdout: function(ptr, len) {
+        const msg = decodeString(ptr, len);
+        stdout += msg;
+        console.log(stdout);
       },
       panic: function(ptr, len) {
         const msg = decodeString(ptr, len);
@@ -34,17 +44,19 @@ function setInputString(s) {
   wasmArray.set(jsArray);
 }
 
-const input = document.querySelector("input");
-const list = document.querySelector("ul");
-var logs = ["Hello"]
+var logs = []
 
-input.oninput = () => {
+function handleOnInput() {
   logs = []
+  stdout = ""
+  const start = performance.now();
   setInputString(input.value);
   wasm_exports.main();
-
+  const end = performance.now();
+  console.log("time", end - start);
   // Clear the list first
   list.innerHTML = '';
+  stdout_el.innerText = stdout;
 
   // Generate a list item for each string in the logs array
   logs.forEach(log => {
@@ -53,3 +65,6 @@ input.oninput = () => {
     list.appendChild(listItem); // Append the list item to the unordered list
   });
 }
+
+input.oninput = handleOnInput;
+handleOnInput()

@@ -7,9 +7,13 @@ pub fn build(b: *std.Build) void {
     const no_bin = b.option(bool, "no-bin", "skip emmiting binary") orelse false;
 
     const is_wasm = target.result.isWasm();
+    if (is_wasm) {
+        wasmBuild(b, target, optimize);
+        return;
+    }
 
     const exe_mod = b.createModule(.{
-        .root_source_file = b.path(if (is_wasm) "src/wasm_entry.zig" else "src/main.zig"),
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -18,11 +22,6 @@ pub fn build(b: *std.Build) void {
         .name = "zlox",
         .root_module = exe_mod,
     });
-
-    if (target.result.isWasm()) {
-        exe.rdynamic = true;
-        exe.entry = .disabled;
-    }
 
     if (no_bin) {
         b.getInstallStep().dependOn(&exe.step);
@@ -49,4 +48,40 @@ pub fn build(b: *std.Build) void {
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+}
+
+pub fn wasmBuild(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
+    const exe_mod = b.createModule(.{
+        .root_source_file = b.path("src/wasm_entry.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "zlox",
+        .root_module = exe_mod,
+        // .use_llvm = true,
+        // .use_lld = true,
+    });
+
+    exe.rdynamic = true;
+    exe.entry = .disabled;
+
+    b.installDirectory(.{
+        .source_dir = b.path("site/"),
+        .install_dir = .bin,
+        .install_subdir = "",
+    });
+    b.installArtifact(exe);
+    const run_server_command = b.addSystemCommand(&.{
+        "python3",
+        "-m",
+        "http.server",
+        "8080",
+        "--directory",
+        b.exe_dir,
+    });
+
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_server_command.step);
 }

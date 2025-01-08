@@ -78,48 +78,52 @@ const ParseRule = struct {
 
 const oper_table: std.EnumArray(std.meta.Tag(Tokenizer.TokenType), ParseRule) = .init(.{
     // zig fmt: off
-    .left_paren    = .{ .prefix = grouping, .infix = null,   .precedence = .none       },
-    .right_paren   = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .left_brace    = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .right_brace   = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .comma         = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .dot           = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .minus         = .{ .prefix = unary,    .infix = binary, .precedence = .term       },
-    .plus          = .{ .prefix = unary,    .infix = binary, .precedence = .term       },
-    .semicolon     = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .slash         = .{ .prefix = null,     .infix = binary, .precedence = .factor     },
-    .star          = .{ .prefix = null,     .infix = binary, .precedence = .factor     },
-    .bang          = .{ .prefix = unary,    .infix = null,   .precedence = .none       },
-    .bang_equal    = .{ .prefix = null,     .infix = binary, .precedence = .equality   },
-    .equal         = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .equal_equal   = .{ .prefix = null,     .infix = binary, .precedence = .equality   },
-    .greater       = .{ .prefix = null,     .infix = binary, .precedence = .comparison },
-    .greater_equal = .{ .prefix = null,     .infix = binary, .precedence = .comparison },
-    .less          = .{ .prefix = null,     .infix = binary, .precedence = .comparison },
-    .less_equal    = .{ .prefix = null,     .infix = binary, .precedence = .comparison },
-    .identifier    = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .string        = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .number        = .{ .prefix = number,   .infix = null,   .precedence = .none       },
-    .@"and"        = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .class         = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .@"else"       = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .false         = .{ .prefix = literal,  .infix = null,   .precedence = .none       },
-    .@"for"        = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .fun           = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .@"if"         = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .nil           = .{ .prefix = literal,  .infix = null,   .precedence = .none       },
-    .@"or"         = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .print         = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .@"return"     = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .super         = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .this          = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .true          = .{ .prefix = literal,  .infix = null,   .precedence = .none       },
-    .@"var"        = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .@"while"      = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .@"error"      = .{ .prefix = null,     .infix = null,   .precedence = .none       },
-    .eof           = .{ .prefix = null,     .infix = null,   .precedence = .none       },
+    .left_paren    = .{ .prefix = grouping,     .infix = null,   .precedence = .none       },
+    .right_paren   = .{ .prefix = null,         .infix = null,   .precedence = .none       },
+    .left_brace    = .{ .prefix = null,         .infix = null,   .precedence = .none       },
+    .right_brace   = .{ .prefix = null,         .infix = null,   .precedence = .none       },
+    .comma         = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .dot           = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .minus         = .{ .prefix = unary,        .infix = binary, .precedence = .term       },
+    .plus          = .{ .prefix = null,         .infix = binary, .precedence = .term       },
+    .semicolon     = .{ .prefix = null,         .infix = null,   .precedence = .none       },
+    .slash         = .{ .prefix = null,         .infix = binary, .precedence = .factor     },
+    .star          = .{ .prefix = null,         .infix = binary, .precedence = .factor     },
+    .bang          = .{ .prefix = unary,        .infix = null,   .precedence = .none       },
+    .bang_equal    = .{ .prefix = null,         .infix = binary, .precedence = .equality   },
+    .equal         = .{ .prefix = null,         .infix = null,   .precedence = .none       },
+    .equal_equal   = .{ .prefix = null,         .infix = binary, .precedence = .equality   },
+    .greater       = .{ .prefix = null,         .infix = binary, .precedence = .comparison },
+    .greater_equal = .{ .prefix = null,         .infix = binary, .precedence = .comparison },
+    .less          = .{ .prefix = null,         .infix = binary, .precedence = .comparison },
+    .less_equal    = .{ .prefix = null,         .infix = binary, .precedence = .comparison },
+    .identifier    = .{ .prefix = null,         .infix = null,   .precedence = .none       },
+    .string        = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .number        = .{ .prefix = number,       .infix = null,   .precedence = .none       },
+    .@"and"        = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .class         = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .@"else"       = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .false         = .{ .prefix = literal,      .infix = null,   .precedence = .none       },
+    .@"for"        = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .fun           = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .@"if"         = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .nil           = .{ .prefix = literal,      .infix = null,   .precedence = .none       },
+    .@"or"         = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .print         = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .@"return"     = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .super         = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .this          = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .true          = .{ .prefix = literal,      .infix = null,   .precedence = .none       },
+    .@"var"        = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .@"while"      = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .@"error"      = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .eof           = .{ .prefix = null,         .infix = null,   .precedence = .none       },
     // zig fmt: on
 });
+
+fn notSupported(c: *Compiler) Error!void {
+    c.errorAtPrev("{s} is not supported yet", .{@tagName(c.prev.type)});
+}
 
 fn parsePresedence(c: *Compiler, pres: Precedence) Error!void {
     log.debug("parsePresedence with {s}", .{@tagName(pres)});
@@ -130,7 +134,7 @@ fn parsePresedence(c: *Compiler, pres: Precedence) Error!void {
     if (oper_table.get(c.prev.type).prefix) |rule| {
         try rule(c);
     } else {
-        c.errorAtPrev("Expected expression.", .{});
+        c.errorAtPrev("expected prefix expression but found {}", .{c.prev.type});
         return error.Compile;
     }
 

@@ -56,7 +56,7 @@ pub fn run(vm: *@This()) Error!void {
         switch (instruction) {
             .@"return" => {
                 const value = try vm.popValue();
-                std.log.info("{}", .{value});
+                std.log.info("result \"{}\"", .{value});
                 return;
             },
             inline .add,

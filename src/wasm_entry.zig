@@ -2,7 +2,7 @@ const std = @import("std");
 const log = std.log;
 
 const gpa = std.heap.wasm_allocator;
-var buffer: [0x1000]u8 = undefined;
+
 pub const os = struct {
     pub const system = struct {
         pub const fd_t = u8;
@@ -21,14 +21,23 @@ pub const os = struct {
         }
     };
 };
+
 const js = struct {
     extern "js" fn log(ptr: [*]const u8, len: usize) void;
+    extern "js" fn stdout(ptr: [*]const u8, len: usize) void;
     extern "js" fn panic(ptr: [*]const u8, len: usize) noreturn;
 };
 pub const std_options: std.Options = .{
     .logFn = logFn,
     .log_level = .info,
 };
+
+pub const writer = std.io.Writer(void, error{}, struct {
+    fn write(_: void, bytes: []const u8) !usize {
+        js.stdout(bytes.ptr, bytes.len);
+        return bytes.len;
+    }
+}.write){ .context = {} };
 
 pub fn panic(msg: []const u8, st: ?*std.builtin.StackTrace, addr: ?usize) noreturn {
     _ = st;
@@ -59,6 +68,7 @@ export fn alloc(n: usize) [*]u8 {
 }
 
 var input_string: std.ArrayListUnmanaged(u8) = .empty;
+
 export fn set_input_string(len: usize) [*]u8 {
     input_string.resize(gpa, len) catch @panic("OOM");
     return input_string.items.ptr;
@@ -69,7 +79,7 @@ export fn main() void {
     @import("main.zig").interpret(
         gpa,
         input_string.items,
-    ) catch |e| {
-        std.log.err("{s}", .{@errorName(e)});
+    ) catch {
+        std.log.err("compile error", .{});
     };
 }
