@@ -3,30 +3,12 @@ const log = std.log;
 
 const gpa = std.heap.wasm_allocator;
 
-pub const os = struct {
-    pub const system = struct {
-        pub const fd_t = u8;
-        pub const STDERR_FILENO = 1;
-        pub const E = std.os.linux.E;
-
-        pub fn getErrno(T: usize) E {
-            _ = T;
-            return .SUCCESS;
-        }
-
-        pub fn write(f: fd_t, ptr: [*]const u8, len: usize) usize {
-            _ = ptr;
-            _ = f;
-            return len;
-        }
-    };
-};
-
 const js = struct {
     extern "js" fn log(ptr: [*]const u8, len: usize) void;
     extern "js" fn stdout(ptr: [*]const u8, len: usize) void;
     extern "js" fn panic(ptr: [*]const u8, len: usize) noreturn;
 };
+
 pub const std_options: std.Options = .{
     .logFn = logFn,
     .log_level = .info,
