@@ -317,8 +317,7 @@ test "tokenize everything" {
         const file_content = try file.dir.readFileAlloc(std.testing.allocator, file.basename, 1024 * 1024);
         defer std.testing.allocator.free(file_content);
         var token_iter = init(file_content);
-        while (token_iter.next()) |token| {
-            _ = token; // autofix
-        }
+        var token = token_iter.next();
+        while (token.type != .eof) : (token = token_iter.next()) {}
     }
 }

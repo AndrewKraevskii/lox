@@ -71,12 +71,12 @@ test Chunk {
     var chunk: Chunk = .init(std.testing.allocator);
     defer chunk.deinit();
 
-    try chunk.pushConstant(.{ .inner = 1.2 });
-    try chunk.pushConstant(.{ .inner = 3.4 });
+    try chunk.pushConstant(.number(1.2));
+    try chunk.pushConstant(.number(3.4));
 
     try chunk.writeOpcode(.add, 0);
 
-    try chunk.pushConstant(.{ .inner = 5.6 });
+    try chunk.pushConstant(.number(5.6));
 
     try chunk.writeOpcode(.divide, 0);
 
