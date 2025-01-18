@@ -23,6 +23,7 @@ pub fn main() !void {
         2 => runFile(arena.allocator(), args[1]),
         else => fatal("Usage: clox [script]", .{}),
     }
+    std.process.cleanExit();
 }
 
 fn repl(gpa: std.mem.Allocator) !void {
