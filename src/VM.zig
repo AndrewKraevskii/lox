@@ -12,13 +12,14 @@ const stdout = if (is_test or @import("builtin").target.isWasm()) std.io.null_wr
 const stack_max = 256;
 
 chunk: *const Chunk,
-
 /// instruction pointer
 // TODO: in book he says pointer would be faster than index into array check if its true.
 // https://craftinginterpreters.com/a-virtual-machine.html#:~:text=Its%20type%20is%20a%20byte%20pointer.%20We%20use%20an%20actual%20real%20C%20pointer%20pointing%20right%20into%20the%20middle%20of%20the%20bytecode%20array%20instead%20of%20something%20like%20an%20integer%20index%20because%20it%E2%80%99s%20faster%20to%20dereference%20a%20pointer%20than%20look%20up%20an%20element%20in%20an%20array%20by%20index.
 ip: u32,
 stack: std.BoundedArray(Value, stack_max),
 diagnostics: ?*Diagnostics,
+arena: std.heap.ArenaAllocator,
+gpa: std.mem.Allocator,
 
 pub const Diagnostics = struct {
     byte: u32 = undefined,
@@ -26,12 +27,15 @@ pub const Diagnostics = struct {
 };
 
 pub const Error = error{
+    OutOfMemory,
     Compile,
     Runtime,
 };
 
-pub fn interpret(chunk: *const Chunk, diagnostics: ?*Diagnostics) Error!void {
+pub fn interpret(gpa: std.mem.Allocator, chunk: *const Chunk, diagnostics: ?*Diagnostics) Error!void {
     var vm = @This(){
+        .gpa = gpa,
+        .arena = .init(gpa),
         .chunk = chunk,
         .ip = 0,
         .stack = .{},
@@ -68,28 +72,36 @@ pub fn run(vm: *@This()) Error!void {
             => |op| {
                 const b = try vm.popValue();
                 const a = try vm.popValue();
-                const b_num = if (b.storage == .number) b.storage.number else {
+                const result: Value = if (b.storage == .number and a.storage == .number) result: {
+                    const a_num, const b_num = .{
+                        a.storage.number,
+                        b.storage.number,
+                    };
+                    break :result switch (op) {
+                        .add => .number(a_num + b_num),
+                        .subtract => .number(a_num - b_num),
+                        .multiply => .number(a_num * b_num),
+                        .divide => .number(a_num / b_num),
+                        .less => .fromBool(a_num < b_num),
+                        .greater => .fromBool(a_num > b_num),
+                        else => @compileError("Its comptime"),
+                    };
+                } else if (b.isObjType(.string) and a.isObjType(.string)) result: {
+                    const str_b = b.storage.object.asString();
+                    const str_a = a.storage.object.asString();
+                    const concated = try std.mem.concat(vm.arena.allocator(), u8, &.{ str_a.slice(), str_b.slice() });
+                    const object = try vm.arena.allocator().create(Value.Object.String);
+                    object.obj = .{ .type = .string };
+                    object.len = concated.len;
+                    object.ptr = concated.ptr;
+
+                    break :result .{ .storage = .{ .object = &object.obj } };
+                } else {
                     if (vm.diagnostics) |d| {
                         d.byte = vm.ip;
                         d.message = "cant " ++ @tagName(op) ++ " non number";
                     }
                     return error.Runtime;
-                };
-                const a_num = if (a.storage == .number) a.storage.number else {
-                    if (vm.diagnostics) |d| {
-                        d.byte = vm.ip;
-                        d.message = "cant " ++ @tagName(op) ++ " non number";
-                    }
-                    return error.Runtime;
-                };
-                const result: Value = switch (op) {
-                    .add => .number(a_num + b_num),
-                    .subtract => .number(a_num - b_num),
-                    .multiply => .number(a_num * b_num),
-                    .divide => .number(a_num / b_num),
-                    .less => .fromBool(a_num < b_num),
-                    .greater => .fromBool(a_num > b_num),
-                    else => comptime unreachable,
                 };
                 vm.stack.appendAssumeCapacity(result);
             },
@@ -119,6 +131,13 @@ pub fn run(vm: *@This()) Error!void {
             .equal => {
                 const b = try vm.popValue();
                 const a = try vm.popValue();
+                if (b.isObjType(.string) and a.isObjType(.string)) {
+                    const str_b = b.storage.object.asString();
+                    const str_a = a.storage.object.asString();
+                    std.log.debug("{} == {}", .{ a, b });
+                    vm.stack.appendAssumeCapacity(.fromBool(std.mem.eql(u8, str_a.slice(), str_b.slice())));
+                    continue;
+                }
                 vm.stack.appendAssumeCapacity(.fromBool(std.meta.eql(a, b)));
             },
         }

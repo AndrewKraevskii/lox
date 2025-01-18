@@ -5,7 +5,7 @@ const Chunk = @import("Chunk.zig");
 const VM = @import("VM.zig");
 const compile = @import("compiler.zig").compile;
 
-pub const debug_trace_execution = false;
+pub const debug_trace_execution = true;
 const stdout = if (is_wasm) @import("wasm_entry.zig").writer else std.io.getStdOut().writer();
 
 pub fn main() !void {
@@ -19,8 +19,8 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(arena.allocator());
     switch (args.len) {
         0 => fatal("got 0 arguments", .{}),
-        1 => try repl(arena.allocator()),
-        2 => runFile(arena.allocator(), args[1]),
+        1 => try repl(gpa),
+        2 => runFile(gpa, args[1]),
         else => fatal("Usage: clox [script]", .{}),
     }
     std.process.cleanExit();
@@ -63,7 +63,7 @@ pub fn interpret(gpa: std.mem.Allocator, program: []const u8) error{ OutOfMemory
     try compile(program, &chunk);
 
     var diagnostics: VM.Diagnostics = .{};
-    VM.interpret(&chunk, &diagnostics) catch {
+    VM.interpret(gpa, &chunk, &diagnostics) catch {
         const source_byte = if (diagnostics.byte < chunk.debug_info.items.len) chunk.debug_info.items[diagnostics.byte] else 0;
         report(program, source_byte, "interpret error: {s}", .{diagnostics.message});
     };

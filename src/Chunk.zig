@@ -21,6 +21,7 @@ pub const OpCode = enum(u8) {
 gpa: std.mem.Allocator,
 code: std.ArrayListUnmanaged(u8),
 constants: std.ArrayListUnmanaged(Value),
+arena: std.heap.ArenaAllocator,
 
 /// Stores byte of source code from which opcode was generated.
 /// we use bytes instead of lines because of this
@@ -33,6 +34,7 @@ pub fn init(gpa: std.mem.Allocator) @This() {
         .code = .empty,
         .constants = .empty,
         .debug_info = .empty,
+        .arena = .init(gpa),
         .gpa = gpa,
     };
 }
@@ -41,6 +43,7 @@ pub fn deinit(self: *@This()) void {
     self.code.deinit(self.gpa);
     self.constants.deinit(self.gpa);
     self.debug_info.deinit(self.gpa);
+    self.arena.deinit();
 }
 
 pub fn writeOpcode(self: *@This(), opcode: OpCode, source_byte: u32) error{OutOfMemory}!void {
@@ -57,6 +60,16 @@ pub fn addConstant(self: *@This(), value: Value) error{ OutOfMemory, NoSpaceForC
     if (position == std.math.maxInt(u8)) return error.NoSpaceForConstant;
     try self.constants.append(self.gpa, value);
     return @intCast(position);
+}
+
+pub fn pushString(self: *@This(), str: []const u8) error{ OutOfMemory, NoSpaceForConstant }!void {
+    const string = try self.arena.allocator().dupe(u8, str);
+    const object = try self.arena.allocator().create(Value.Object.String);
+    object.obj = .{ .type = .string };
+    object.len = string.len;
+    object.ptr = string.ptr;
+
+    try self.pushConstant(.{ .storage = .{ .object = &object.obj } });
 }
 
 fn pushConstant(c: *Chunk, v: Value) error{ OutOfMemory, NoSpaceForConstant }!void {

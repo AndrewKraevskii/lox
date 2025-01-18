@@ -98,7 +98,7 @@ const oper_table: std.EnumArray(std.meta.Tag(Tokenizer.TokenType), ParseRule) = 
     .less          = .{ .prefix = null,         .infix = binary, .precedence = .comparison },
     .less_equal    = .{ .prefix = null,         .infix = binary, .precedence = .comparison },
     .identifier    = .{ .prefix = null,         .infix = null,   .precedence = .none       },
-    .string        = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
+    .string        = .{ .prefix = string,       .infix = null,   .precedence = .none       },
     .number        = .{ .prefix = number,       .infix = null,   .precedence = .none       },
     .@"and"        = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
     .class         = .{ .prefix = notSupported, .infix = null,   .precedence = .none       },
@@ -187,6 +187,14 @@ fn binary(c: *Compiler) Error!void {
 fn number(c: *Compiler) Error!void {
     const value = c.prev.type.number;
     return c.emitConstant(.number(value)) catch |e| switch (e) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.NoSpaceForConstant => error.Compile,
+    };
+}
+
+fn string(c: *Compiler) Error!void {
+    const value = c.prev.type.string;
+    return c.chunk.pushString(value) catch |e| switch (e) {
         error.OutOfMemory => error.OutOfMemory,
         error.NoSpaceForConstant => error.Compile,
     };
