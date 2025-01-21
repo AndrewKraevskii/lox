@@ -63,13 +63,8 @@ pub fn addConstant(self: *@This(), value: Value) error{ OutOfMemory, NoSpaceForC
 }
 
 pub fn pushString(self: *@This(), str: []const u8) error{ OutOfMemory, NoSpaceForConstant }!void {
-    const string = try self.arena.allocator().dupe(u8, str);
-    const object = try self.arena.allocator().create(Value.Object.String);
-    object.obj = .{ .type = .string };
-    object.len = string.len;
-    object.ptr = string.ptr;
-
-    try self.pushConstant(.{ .storage = .{ .object = &object.obj } });
+    const obj_str = try Value.Object.String.copyString(self.arena.allocator(), str);
+    try self.pushConstant(.{ .storage = .{ .object = &obj_str.obj } });
 }
 
 fn pushConstant(c: *Chunk, v: Value) error{ OutOfMemory, NoSpaceForConstant }!void {

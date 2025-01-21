@@ -67,10 +67,12 @@ pub fn interpret(gpa: std.mem.Allocator, program: []const u8) error{ OutOfMemory
     defer chunk.deinit();
     try compile(program, &chunk);
 
-    var diagnostics: VM.Diagnostics = .{};
+    var diagnostics: VM.Diagnostics = .init;
+    defer diagnostics.deinit(gpa);
+
     VM.interpret(gpa, &chunk, &diagnostics) catch {
         const source_byte = if (diagnostics.byte < chunk.debug_info.items.len) chunk.debug_info.items[diagnostics.byte] else 0;
-        report(program, source_byte, "interpret error: {s}", .{diagnostics.message});
+        report(program, source_byte, "Runtime error: {s}", .{diagnostics.message});
     };
 }
 
@@ -93,7 +95,6 @@ pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args
             stdout().print(
                 \\
                 \\
-                \\Error: 
             ++ fmt ++
                 \\
                 \\{d:>4} | {s}

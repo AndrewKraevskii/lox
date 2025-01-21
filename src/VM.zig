@@ -2,9 +2,9 @@ const std = @import("std");
 const is_test = @import("builtin").is_test;
 
 const Chunk = @import("Chunk.zig");
-const Value = @import("Value.zig");
 const debug = @import("debug.zig");
 const debug_trace_execution = @import("main.zig").debug_trace_execution;
+const Value = @import("Value.zig");
 
 const VM = @This();
 const stdout = if (is_test or @import("builtin").target.isWasm()) std.io.null_writer else std.io.getStdOut().writer();
@@ -19,10 +19,24 @@ ip: u32,
 stack: std.BoundedArray(Value, stack_max),
 diagnostics: ?*Diagnostics,
 arena: std.heap.ArenaAllocator.State,
+strings: Table,
+
+const Table = std.StringHashMapUnmanaged(void);
 
 pub const Diagnostics = struct {
-    byte: u32 = undefined,
-    message: []const u8 = "",
+    byte: u32,
+    message: []const u8,
+
+    pub const init: Diagnostics = .{
+        .byte = undefined,
+        .message = "",
+    };
+
+    pub fn deinit(self: *Diagnostics, gpa: std.mem.Allocator) void {
+        if (self.message.len != 0) {
+            gpa.free(self.message);
+        }
+    }
 };
 
 pub const Error = error{
@@ -32,12 +46,13 @@ pub const Error = error{
 };
 
 pub fn interpret(gpa: std.mem.Allocator, chunk: *const Chunk, diagnostics: ?*Diagnostics) Error!void {
-    var vm = @This(){
+    var vm: VM = .{
         .arena = .{},
         .chunk = chunk,
         .ip = 0,
         .stack = .{},
         .diagnostics = diagnostics,
+        .strings = .empty,
     };
     defer vm.deinit(gpa);
 
@@ -92,16 +107,17 @@ pub fn run(vm: *@This(), gpa: std.mem.Allocator) Error!void {
                     var arena = vm.arena.promote(gpa);
                     defer vm.arena = arena.state;
                     const concated = try std.mem.concat(arena.allocator(), u8, &.{ str_a.slice(), str_b.slice() });
-                    const object = try arena.allocator().create(Value.Object.String);
-                    object.obj = .{ .type = .string };
-                    object.len = concated.len;
-                    object.ptr = concated.ptr;
+                    const str_obj: *Value.Object.String = try .fromSlice(arena.allocator(), concated);
 
-                    break :result .{ .storage = .{ .object = &object.obj } };
+                    break :result .{ .storage = .{ .object = &str_obj.obj } };
                 } else {
                     if (vm.diagnostics) |d| {
                         d.byte = ip_for_current_instruction;
-                        d.message = "cant " ++ @tagName(op) ++ " non number";
+                        d.message = try std.fmt.allocPrint(gpa, "cant {s} {s} and {s}", .{
+                            @tagName(op),
+                            @tagName(a.valueType()),
+                            @tagName(b.valueType()),
+                        });
                     }
                     return error.Runtime;
                 };
@@ -190,6 +206,7 @@ fn readConstant(vm: *@This()) ?Value {
 
 pub fn deinit(self: *@This(), gpa: std.mem.Allocator) void {
     self.arena.promote(gpa).deinit();
+    self.strings.deinit(gpa);
 }
 
 test "basic fuzz VM" {
@@ -200,7 +217,7 @@ test "basic fuzz VM" {
             for (input) |byte| {
                 try chunk.writeByte(byte, 0);
             }
-            VM.interpret(&chunk, null) catch {};
+            VM.interpret(std.testing.allocator, &chunk, null) catch {};
         }
     }.fuzz, .{
         .corpus = &.{},

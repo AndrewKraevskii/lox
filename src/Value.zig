@@ -20,6 +20,20 @@ pub const Object = struct {
         pub fn slice(str: *String) []const u8 {
             return str.ptr[0..str.len];
         }
+
+        pub fn copyString(alloc: std.mem.Allocator, str: []const u8) error{OutOfMemory}!*String {
+            const duped = try alloc.dupe(u8, str);
+            errdefer alloc.free(duped);
+            return .fromSlice(alloc, duped);
+        }
+
+        pub fn fromSlice(alloc: std.mem.Allocator, str: []const u8) error{OutOfMemory}!*String {
+            const object_str = try alloc.create(Value.Object.String);
+            object_str.obj = .{ .type = .string };
+            object_str.len = str.len;
+            object_str.ptr = str.ptr;
+            return object_str;
+        }
     };
 
     pub const Type = enum {
@@ -74,6 +88,27 @@ pub fn format(
         },
         .nil => {
             try writer.writeAll("nil");
+        },
+    }
+}
+
+/// For object it also checkes its type
+pub fn valueType(
+    self: @This(),
+) enum {
+    number,
+    boolean,
+    nil,
+    string,
+} {
+    switch (self.storage) {
+        .number => return .number,
+        .boolean => return .boolean,
+        .nil => return .nil,
+        .object => |o| {
+            switch (o.type) {
+                .string => return .string,
+            }
         },
     }
 }

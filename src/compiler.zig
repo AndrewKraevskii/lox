@@ -238,7 +238,7 @@ fn errorAtCurrent(c: *@This(), comptime fmt: []const u8, args: anytype) void {
 
 fn errorAtPrev(c: *@This(), comptime fmt: []const u8, args: anytype) void {
     c.had_error = true;
-    report(c.tokenizer.source, c.prev.position, fmt, args);
+    report(c.tokenizer.source, c.prev.position, "Compile error: " ++ fmt, args);
 }
 
 fn emitByte(c: *Compiler, byte: u8) error{OutOfMemory}!void {
