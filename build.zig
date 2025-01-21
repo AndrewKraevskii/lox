@@ -4,7 +4,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const no_bin = b.option(bool, "no-bin", "skip emmiting binary") orelse false;
+    const no_bin = b.option(bool, "no-bin", "skip emitting binary") orelse false;
 
     const is_wasm = target.result.isWasm();
     if (is_wasm) {
@@ -21,6 +21,8 @@ pub fn build(b: *std.Build) void {
     const exe = b.addExecutable(.{
         .name = "zlox",
         .root_module = exe_mod,
+        .use_llvm = false,
+        .use_lld = false,
     });
 
     if (no_bin) {

@@ -1,4 +1,4 @@
-//! https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
+//! Heavily inspired by https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
 
 const std = @import("std");
 const fs = std.fs;
@@ -137,7 +137,7 @@ pub fn getLine(self: *@This(), gpa: std.mem.Allocator) ![]const u8 {
                 } else if (std.mem.eql(u8, esc_buffer[0..esc_read], "a")) {
                     std.debug.print("input: Alt-a\r\n", .{});
                 } else {
-                    std.debug.print("input: unknown escape sequence\r\n", .{});
+                    std.debug.print("input: unknown escape sequence {s}\r\n", .{esc_buffer[0..esc_read]});
                 }
                 try std.posix.tcsetattr(self.tty.handle, .NOW, self.raw_termios);
             },

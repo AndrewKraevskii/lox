@@ -114,4 +114,5 @@ pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args
 test {
     _ = @import("Tokenizer.zig");
     _ = @import("VM.zig");
+    _ = @import("Table.zig");
 }

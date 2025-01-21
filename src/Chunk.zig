@@ -1,5 +1,6 @@
 const std = @import("std");
 const Value = @import("Value.zig");
+const Table = @import("Table.zig");
 
 pub const OpCode = enum(u8) {
     constant,
@@ -21,8 +22,7 @@ pub const OpCode = enum(u8) {
 gpa: std.mem.Allocator,
 code: std.ArrayListUnmanaged(u8),
 constants: std.ArrayListUnmanaged(Value),
-arena: std.heap.ArenaAllocator,
-
+strings: Table,
 /// Stores byte of source code from which opcode was generated.
 /// we use bytes instead of lines because of this
 /// https://www.computerenhance.com/p/byte-positions-are-better-than-line
@@ -34,7 +34,7 @@ pub fn init(gpa: std.mem.Allocator) @This() {
         .code = .empty,
         .constants = .empty,
         .debug_info = .empty,
-        .arena = .init(gpa),
+        .strings = .empty,
         .gpa = gpa,
     };
 }
@@ -43,7 +43,7 @@ pub fn deinit(self: *@This()) void {
     self.code.deinit(self.gpa);
     self.constants.deinit(self.gpa);
     self.debug_info.deinit(self.gpa);
-    self.arena.deinit();
+    self.strings.deinit(self.gpa);
 }
 
 pub fn writeOpcode(self: *@This(), opcode: OpCode, source_byte: u32) error{OutOfMemory}!void {
@@ -63,7 +63,7 @@ pub fn addConstant(self: *@This(), value: Value) error{ OutOfMemory, NoSpaceForC
 }
 
 pub fn pushString(self: *@This(), str: []const u8) error{ OutOfMemory, NoSpaceForConstant }!void {
-    const obj_str = try Value.Object.String.copyString(self.arena.allocator(), str);
+    const obj_str = try Value.Object.String.copyString(self.gpa, &self.strings, str);
     try self.pushConstant(.{ .storage = .{ .object = &obj_str.obj } });
 }
 

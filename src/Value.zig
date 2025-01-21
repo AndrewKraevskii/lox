@@ -1,6 +1,9 @@
 const std = @import("std");
 
 const Value = @This();
+// same hash as in book
+const hash = std.hash.Fnv1a_32.hash;
+const Table = @import("Table.zig");
 
 storage: union(enum) {
     boolean: bool,
@@ -14,6 +17,7 @@ pub const Object = struct {
 
     pub const String = struct {
         obj: Object,
+        hash: u32,
         len: usize,
         ptr: [*]const u8,
 
@@ -21,18 +25,50 @@ pub const Object = struct {
             return str.ptr[0..str.len];
         }
 
-        pub fn copyString(alloc: std.mem.Allocator, str: []const u8) error{OutOfMemory}!*String {
+        pub fn copyString(alloc: std.mem.Allocator, strings: *Table, str: []const u8) error{OutOfMemory}!*String {
+            const str_hash = hash(str);
+
+            const maybe_interned = strings.findString(str, str_hash);
+            if (maybe_interned) |interned| return interned;
+
             const duped = try alloc.dupe(u8, str);
             errdefer alloc.free(duped);
-            return .fromSlice(alloc, duped);
+
+            return allocateString(alloc, strings, duped, str_hash);
         }
 
-        pub fn fromSlice(alloc: std.mem.Allocator, str: []const u8) error{OutOfMemory}!*String {
-            const object_str = try alloc.create(Value.Object.String);
-            object_str.obj = .{ .type = .string };
-            object_str.len = str.len;
-            object_str.ptr = str.ptr;
-            return object_str;
+        pub fn fromSlice(alloc: std.mem.Allocator, strings: *Table, str: []const u8) error{OutOfMemory}!*String {
+            const str_hash = hash(str);
+            const maybe_interned = strings.findString(str, str_hash);
+
+            if (maybe_interned) |interned| {
+                alloc.free(str);
+                return interned;
+            }
+
+            return allocateString(alloc, strings, str, str_hash);
+        }
+
+        pub fn allocateString(alloc: std.mem.Allocator, strings: *Table, str: []const u8, str_hash: u32) error{OutOfMemory}!*String {
+            const obj_str = try alloc.create(String);
+            obj_str.* = .{
+                .obj = .{ .type = .string },
+                .len = str.len,
+                .ptr = str.ptr,
+                .hash = str_hash,
+            };
+
+            _ = try strings.set(
+                alloc,
+                obj_str,
+                .nil,
+            );
+            return obj_str;
+        }
+
+        pub fn deinit(str: *String, gpa: std.mem.Allocator) void {
+            gpa.free(str.slice());
+            gpa.destroy(str);
         }
     };
 
@@ -65,6 +101,10 @@ pub fn isFalsey(v: Value) bool {
     };
 }
 
+pub fn isNil(v: Value) bool {
+    return v.storage == .nil;
+}
+
 pub fn format(
     self: @This(),
     comptime _: []const u8,
@@ -92,7 +132,7 @@ pub fn format(
     }
 }
 
-/// For object it also checkes its type
+/// For object it also checks its type
 pub fn valueType(
     self: @This(),
 ) enum {

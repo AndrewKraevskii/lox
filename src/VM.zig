@@ -1,13 +1,12 @@
 const std = @import("std");
-const is_test = @import("builtin").is_test;
 
 const Chunk = @import("Chunk.zig");
 const debug = @import("debug.zig");
 const debug_trace_execution = @import("main.zig").debug_trace_execution;
 const Value = @import("Value.zig");
+const Table = @import("Table.zig");
 
 const VM = @This();
-const stdout = if (is_test or @import("builtin").target.isWasm()) std.io.null_writer else std.io.getStdOut().writer();
 
 const stack_max = 256;
 
@@ -18,10 +17,7 @@ chunk: *const Chunk,
 ip: u32,
 stack: std.BoundedArray(Value, stack_max),
 diagnostics: ?*Diagnostics,
-arena: std.heap.ArenaAllocator.State,
 strings: Table,
-
-const Table = std.StringHashMapUnmanaged(void);
 
 pub const Diagnostics = struct {
     byte: u32,
@@ -47,13 +43,13 @@ pub const Error = error{
 
 pub fn interpret(gpa: std.mem.Allocator, chunk: *const Chunk, diagnostics: ?*Diagnostics) Error!void {
     var vm: VM = .{
-        .arena = .{},
         .chunk = chunk,
         .ip = 0,
         .stack = .{},
         .diagnostics = diagnostics,
         .strings = .empty,
     };
+    try Table.addAll(gpa, &chunk.strings, &vm.strings);
     defer vm.deinit(gpa);
 
     return vm.run(gpa);
@@ -104,10 +100,9 @@ pub fn run(vm: *@This(), gpa: std.mem.Allocator) Error!void {
                 } else if (b.isObjType(.string) and a.isObjType(.string) and op == .add) result: {
                     const str_b = b.storage.object.asString();
                     const str_a = a.storage.object.asString();
-                    var arena = vm.arena.promote(gpa);
-                    defer vm.arena = arena.state;
-                    const concated = try std.mem.concat(arena.allocator(), u8, &.{ str_a.slice(), str_b.slice() });
-                    const str_obj: *Value.Object.String = try .fromSlice(arena.allocator(), concated);
+
+                    const concated = try std.mem.concat(gpa, u8, &.{ str_a.slice(), str_b.slice() });
+                    const str_obj: *Value.Object.String = try .fromSlice(gpa, &vm.strings, concated);
 
                     break :result .{ .storage = .{ .object = &str_obj.obj } };
                 } else {
@@ -150,9 +145,7 @@ pub fn run(vm: *@This(), gpa: std.mem.Allocator) Error!void {
                 const b = try vm.popValue();
                 const a = try vm.popValue();
                 if (b.isObjType(.string) and a.isObjType(.string)) {
-                    const str_b = b.storage.object.asString();
-                    const str_a = a.storage.object.asString();
-                    vm.stack.appendAssumeCapacity(.fromBool(std.mem.eql(u8, str_a.slice(), str_b.slice())));
+                    vm.stack.appendAssumeCapacity(.fromBool(a.storage.object == b.storage.object));
                     continue;
                 }
                 vm.stack.appendAssumeCapacity(.fromBool(std.meta.eql(a, b)));
@@ -205,7 +198,11 @@ fn readConstant(vm: *@This()) ?Value {
 }
 
 pub fn deinit(self: *@This(), gpa: std.mem.Allocator) void {
-    self.arena.promote(gpa).deinit();
+    for (self.strings.entries) |entry| {
+        if (entry.key) |*key| {
+            key.*.deinit(gpa);
+        }
+    }
     self.strings.deinit(gpa);
 }
 
