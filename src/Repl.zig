@@ -6,7 +6,6 @@ string_arena: std.heap.ArenaAllocator.State,
 
 tty: fs.File,
 
-/// `null` if failed to uncook terminal and there is no need to restore.
 original_termios: std.posix.termios,
 raw_termios: std.posix.termios,
 
