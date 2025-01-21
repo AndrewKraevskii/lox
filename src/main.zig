@@ -1,10 +1,16 @@
 const std = @import("std");
-const is_wasm = @import("builtin").target.isWasm();
+const builtin = @import("builtin");
 
 const Chunk = @import("Chunk.zig");
-const Repl = @import("Repl.zig");
-const VM = @import("VM.zig");
 const compile = @import("compiler.zig").compile;
+const VM = @import("VM.zig");
+
+const is_wasm = builtin.target.isWasm();
+
+const Repl = if (builtin.target.isWasm() or builtin.target.os.tag == .windows)
+    @import("DumbRepl.zig")
+else
+    @import("PosixRepl.zig");
 
 pub const debug_trace_execution = false;
 

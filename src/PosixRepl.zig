@@ -1,3 +1,5 @@
+//! https://zig.news/lhp/want-to-create-a-tui-application-the-basics-of-uncooked-terminal-io-17gm
+
 const std = @import("std");
 const fs = std.fs;
 
@@ -43,7 +45,7 @@ pub fn deinit(self: *@This(), gpa: std.mem.Allocator) void {
     };
 }
 
-pub fn uncookTerminal(tty: fs.File) !struct { std.posix.termios, std.posix.termios } {
+fn uncookTerminal(tty: fs.File) !struct { std.posix.termios, std.posix.termios } {
     const original_termios = try std.posix.tcgetattr(tty.handle);
     var raw = original_termios;
     //   ECHO: Stop the terminal from displaying pressed keys.
@@ -91,7 +93,7 @@ pub fn uncookTerminal(tty: fs.File) !struct { std.posix.termios, std.posix.termi
 
 const escape_code = '\x1B';
 
-pub fn clearLine(self: *@This()) !void {
+fn clearLine(self: *@This()) !void {
     try self.tty.writeAll(.{escape_code} ++ "[2K" ++ .{escape_code} ++ "[0G");
 }
 
