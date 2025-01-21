@@ -2,11 +2,15 @@ const std = @import("std");
 const is_wasm = @import("builtin").target.isWasm();
 
 const Chunk = @import("Chunk.zig");
+const Repl = @import("Repl.zig");
 const VM = @import("VM.zig");
 const compile = @import("compiler.zig").compile;
 
-pub const debug_trace_execution = true;
-const stdout = if (is_wasm) @import("wasm_entry.zig").writer else std.io.getStdOut().writer();
+pub const debug_trace_execution = false;
+
+pub fn stdout() @TypeOf(if (is_wasm) @import("wasm_entry.zig").writer else std.io.getStdOut().writer()) {
+    return if (is_wasm) @import("wasm_entry.zig").writer else std.io.getStdOut().writer();
+}
 
 pub fn main() !void {
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{}).init;
@@ -19,30 +23,25 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(arena.allocator());
     switch (args.len) {
         0 => fatal("got 0 arguments", .{}),
-        1 => try repl(gpa),
+        1 => try doRepl(gpa),
         2 => runFile(gpa, args[1]),
         else => fatal("Usage: clox [script]", .{}),
     }
     std.process.cleanExit();
 }
 
-fn repl(gpa: std.mem.Allocator) !void {
-    var line: std.BoundedArray(u8, 1024) = .{};
-    var stdin = std.io.getStdIn().reader();
+fn doRepl(gpa: std.mem.Allocator) !void {
+    var repl: Repl = try .init();
+    defer repl.deinit(gpa);
 
     while (true) {
-        try stdout.writeAll("> ");
-
-        stdin.streamUntilDelimiter(line.writer(), '\n', null) catch |e| switch (e) {
-            error.EndOfStream => break,
-            error.StreamTooLong => {},
+        const line = repl.getLine(gpa) catch |e| switch (e) {
+            error.EndOfFile => break,
             else => return e,
         };
-        interpret(gpa, line.slice()) catch |e| {
+        interpret(gpa, line) catch |e| {
             std.log.err("{s}", .{@errorName(e)});
         };
-
-        line.clear();
     }
 }
 
@@ -85,7 +84,7 @@ pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args
         const end_of_line_byte_pos = start_of_line_byte_pos + line.len;
         _ = line_iter.next();
         if (start_of_line_byte_pos <= byte and byte <= end_of_line_byte_pos) {
-            stdout.print(
+            stdout().print(
                 \\
                 \\
                 \\Error: 
@@ -97,8 +96,8 @@ pub fn report(source_code: []const u8, byte: u32, comptime fmt: []const u8, args
                 line_number + 1,
                 line,
             }) catch @panic("failed to write to stdout");
-            stdout.writeByteNTimes(' ', 7 + byte - start_of_line_byte_pos) catch @panic("failed to write to stdout");
-            stdout.writeAll("^-- Here.\n") catch @panic("failed to write to stdout");
+            stdout().writeByteNTimes(' ', 7 + byte - start_of_line_byte_pos) catch @panic("failed to write to stdout");
+            stdout().writeAll("^-- Here.\n") catch @panic("failed to write to stdout");
             return;
         }
     }

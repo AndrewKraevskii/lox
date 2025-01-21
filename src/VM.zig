@@ -86,7 +86,7 @@ pub fn run(vm: *@This()) Error!void {
                         .greater => .fromBool(a_num > b_num),
                         else => @compileError("Its comptime"),
                     };
-                } else if (b.isObjType(.string) and a.isObjType(.string)) result: {
+                } else if (b.isObjType(.string) and a.isObjType(.string) and op == .add) result: {
                     const str_b = b.storage.object.asString();
                     const str_a = a.storage.object.asString();
                     const concated = try std.mem.concat(vm.arena.allocator(), u8, &.{ str_a.slice(), str_b.slice() });
@@ -134,7 +134,6 @@ pub fn run(vm: *@This()) Error!void {
                 if (b.isObjType(.string) and a.isObjType(.string)) {
                     const str_b = b.storage.object.asString();
                     const str_a = a.storage.object.asString();
-                    std.log.debug("{} == {}", .{ a, b });
                     vm.stack.appendAssumeCapacity(.fromBool(std.mem.eql(u8, str_a.slice(), str_b.slice())));
                     continue;
                 }
