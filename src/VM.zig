@@ -18,8 +18,7 @@ chunk: *const Chunk,
 ip: u32,
 stack: std.BoundedArray(Value, stack_max),
 diagnostics: ?*Diagnostics,
-arena: std.heap.ArenaAllocator,
-gpa: std.mem.Allocator,
+arena: std.heap.ArenaAllocator.State,
 
 pub const Diagnostics = struct {
     byte: u32 = undefined,
@@ -34,18 +33,18 @@ pub const Error = error{
 
 pub fn interpret(gpa: std.mem.Allocator, chunk: *const Chunk, diagnostics: ?*Diagnostics) Error!void {
     var vm = @This(){
-        .gpa = gpa,
-        .arena = .init(gpa),
+        .arena = .{},
         .chunk = chunk,
         .ip = 0,
         .stack = .{},
         .diagnostics = diagnostics,
     };
+    defer vm.deinit(gpa);
 
-    return vm.run();
+    return vm.run(gpa);
 }
 
-pub fn run(vm: *@This()) Error!void {
+pub fn run(vm: *@This(), gpa: std.mem.Allocator) Error!void {
     // TODO: gotta go fast use labeled switch
     while (true) {
         if (debug_trace_execution) {
@@ -89,8 +88,10 @@ pub fn run(vm: *@This()) Error!void {
                 } else if (b.isObjType(.string) and a.isObjType(.string) and op == .add) result: {
                     const str_b = b.storage.object.asString();
                     const str_a = a.storage.object.asString();
-                    const concated = try std.mem.concat(vm.arena.allocator(), u8, &.{ str_a.slice(), str_b.slice() });
-                    const object = try vm.arena.allocator().create(Value.Object.String);
+                    var arena = vm.arena.promote(gpa);
+                    defer vm.arena = arena.state;
+                    const concated = try std.mem.concat(arena.allocator(), u8, &.{ str_a.slice(), str_b.slice() });
+                    const object = try arena.allocator().create(Value.Object.String);
                     object.obj = .{ .type = .string };
                     object.len = concated.len;
                     object.ptr = concated.ptr;
@@ -186,8 +187,8 @@ fn readConstant(vm: *@This()) ?Value {
     return vm.chunk.constants.items[byte];
 }
 
-pub fn deinit(self: *@This()) void {
-    self.chunk.deinit();
+pub fn deinit(self: *@This(), gpa: std.mem.Allocator) void {
+    self.arena.promote(gpa).deinit();
 }
 
 test "basic fuzz VM" {

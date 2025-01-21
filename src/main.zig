@@ -13,7 +13,7 @@ pub fn stdout() @TypeOf(if (is_wasm) @import("wasm_entry.zig").writer else std.i
 }
 
 pub fn main() !void {
-    var gpa_impl = std.heap.GeneralPurposeAllocator(.{}).init;
+    var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .init;
     defer _ = gpa_impl.deinit();
     const gpa = gpa_impl.allocator();
 
