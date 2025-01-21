@@ -55,6 +55,7 @@ pub fn run(vm: *@This(), gpa: std.mem.Allocator) Error!void {
             std.debug.print("\n", .{});
             _ = debug.disassembleInstruction(vm.chunk, null, vm.ip);
         }
+        const ip_for_current_instruction = vm.ip;
         const instruction = vm.readOpCode() orelse return error.Runtime;
         switch (instruction) {
             .@"return" => {
@@ -99,7 +100,7 @@ pub fn run(vm: *@This(), gpa: std.mem.Allocator) Error!void {
                     break :result .{ .storage = .{ .object = &object.obj } };
                 } else {
                     if (vm.diagnostics) |d| {
-                        d.byte = vm.ip;
+                        d.byte = ip_for_current_instruction;
                         d.message = "cant " ++ @tagName(op) ++ " non number";
                     }
                     return error.Runtime;
@@ -119,7 +120,7 @@ pub fn run(vm: *@This(), gpa: std.mem.Allocator) Error!void {
                     vm.stack.appendAssumeCapacity(.number(-value.storage.number));
                 } else {
                     if (vm.diagnostics) |d| {
-                        d.byte = vm.ip;
+                        d.byte = ip_for_current_instruction;
                         d.message = "attempt to negate not number";
                     }
                     return error.Runtime;
